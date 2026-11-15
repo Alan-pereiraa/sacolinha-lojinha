@@ -1,0 +1,60 @@
+@import "tailwindcss";
+
+/* Tema padrão (rosa). Cada loja sobrescreve estas variáveis no elemento raiz. */
+:root {
+  --deep: #a3195b;
+  --petal: #f9c9da;
+  --soft: #fce1eb;
+  --blush: #fff6f9;
+  --ink: #3b0f26;
+  --muted: #7a3b58;
+}
+
+@theme inline {
+  --color-deep: var(--deep);
+  --color-petal: var(--petal);
+  --color-soft: var(--soft);
+  --color-blush: var(--blush);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+
+  --font-sans: "DM Sans Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-elegante: "Fraunces Variable", ui-serif, Georgia, serif;
+  --font-romantica: "Cormorant Garamond", ui-serif, Georgia, serif;
+}
+
+@layer base {
+  body {
+    background: var(--blush);
+    color: var(--ink);
+  }
+  a {
+    color: inherit;
+  }
+}
+
+/* Componentes do visual da Sacolinha */
+@utility campo {
+  @apply h-13 w-full rounded-2xl border border-petal bg-white px-4 text-[15px] text-ink outline-none placeholder:text-muted/70 focus:border-deep focus:ring-2 focus:ring-deep/20;
+}
+@utility rotulo {
+  @apply text-sm font-semibold;
+}
+@utility btn {
+  @apply inline-flex h-12 items-center justify-center gap-2 rounded-full px-6 text-[15px] font-bold transition disabled:cursor-not-allowed disabled:opacity-60;
+}
+@utility btn-primario {
+  @apply btn bg-deep text-white hover:brightness-110;
+}
+@utility btn-secundario {
+  @apply btn border border-petal bg-white text-ink hover:bg-soft;
+}
+@utility btn-suave {
+  @apply btn bg-soft text-deep hover:bg-petal;
+}
+@utility cartao {
+  @apply rounded-[28px] bg-white p-6;
+}
+@utility titulo {
+  @apply font-elegante font-normal;
+}
