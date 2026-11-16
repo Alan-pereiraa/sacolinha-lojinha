@@ -1,6 +1,7 @@
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
+import { MODO_DEMO } from "@/lib/config";
 
 /** Reduz a foto do celular para no máximo `max` px e converte para JPEG antes de enviar. */
 async function reduzir(arquivo: File, max = 1600): Promise<Blob> {
@@ -19,7 +20,7 @@ async function reduzir(arquivo: File, max = 1600): Promise<Blob> {
 
 /** Envia uma foto para o bucket `fotos` na pasta da loja e devolve a URL pública. */
 export async function enviarFoto(arquivo: File, lojaId: string, pasta: "produtos" | "marca") {
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_DEMO === "1") {
+  if (MODO_DEMO) {
     throw new Error("O envio de fotos fica desligado na demonstração. Ele funciona com o Supabase configurado.");
   }
   const supabase = createClient();

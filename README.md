@@ -87,6 +87,9 @@ cp .env.example .env.local
 
 Preencha `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_ANON_KEY` (em *Project Settings → API*).
 
+Depois de publicar, abra **/status**: a página mostra se cada variável está certa e se a conexão
+com o banco funciona (sem nunca exibir o valor das chaves).
+
 ### 3. Rodar
 
 ```bash

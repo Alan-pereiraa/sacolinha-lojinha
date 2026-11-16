@@ -1,16 +1,19 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { MODO_DEMO } from "@/lib/demo";
+import { CONFIG_OK, SUPABASE_ANON_KEY, SUPABASE_URL } from "@/lib/config";
 
 /** Renova a sessão em cada request e protege /painel. */
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
   // Demonstração: não há sessão de verdade para renovar nem rotas para proteger
   if (MODO_DEMO) return response;
+  // Configuração com problema: deixa a página abrir e mostrar o aviso em vez de derrubar o site
+  if (!CONFIG_OK) return response;
 
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    SUPABASE_URL,
+    SUPABASE_ANON_KEY,
     {
       cookies: {
         getAll() {
@@ -26,9 +29,15 @@ export async function updateSession(request: NextRequest) {
   );
 
   // Não coloque código entre createServerClient e getUser.
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  let user = null;
+  try {
+    ({
+      data: { user },
+    } = await supabase.auth.getUser());
+  } catch (e) {
+    // Supabase fora do ar ou chave recusada: segue sem sessão em vez de quebrar a página
+    console.error("[proxy] falha ao ler a sessão", e);
+  }
 
   const path = request.nextUrl.pathname;
   if (!user && path.startsWith("/painel")) {

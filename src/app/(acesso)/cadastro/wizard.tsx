@@ -6,6 +6,7 @@ import { cadastrar, checarSlug } from "../actions";
 import { slugify } from "@/lib/formatar";
 import { TEMAS, type TemaId } from "@/lib/temas";
 import { IconeCheck } from "@/components/icones";
+import { AvisoConfig } from "@/components/aviso-config";
 
 const PASSOS = [
   { titulo: "Seus dados", sub: "Nome, contato e senha" },
@@ -71,6 +72,7 @@ export function WizardCadastro() {
         ))}
       </ol>
 
+      <AvisoConfig />
       {estado?.erro && (
         <p role="alert" className="rounded-2xl bg-soft px-4 py-3 text-sm font-semibold text-deep">{estado.erro}</p>
       )}

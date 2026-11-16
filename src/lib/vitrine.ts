@@ -2,8 +2,10 @@ import "server-only";
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { COLUNAS_LOJA_PUBLICA, type Loja, type Produto } from "@/lib/tipos";
+import { CONFIG_OK, MODO_DEMO } from "@/lib/config";
 
 export const getLojaPublica = cache(async (slug: string) => {
+  if (!MODO_DEMO && !CONFIG_OK) return null;
   const supabase = await createClient();
   const { data } = await supabase.from("lojas").select(COLUNAS_LOJA_PUBLICA).eq("slug", slug.toLowerCase()).maybeSingle();
   return (data as Loja | null) ?? null;

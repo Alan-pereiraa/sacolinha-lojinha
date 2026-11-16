@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useActionState, useState } from "react";
 import { entrar } from "../actions";
+import { AvisoConfig } from "@/components/aviso-config";
 
 export function FormLogin({ voltar, erroLink, demo }: { voltar: string; erroLink: boolean; demo?: boolean }) {
   const [estado, acao, enviando] = useActionState(entrar, undefined);
@@ -17,6 +18,7 @@ export function FormLogin({ voltar, erroLink, demo }: { voltar: string; erroLink
         <p className="text-muted">Entre para cuidar da sua loja.</p>
       </div>
 
+      <AvisoConfig />
       {demo && (
         <p className="rounded-2xl bg-soft px-4 py-3 text-sm text-ink">
           <strong>Demonstração:</strong> digite qualquer e-mail e senha para entrar no painel de exemplo.

@@ -3,9 +3,11 @@ import { cache } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { Loja, Sacola } from "@/lib/tipos";
+import { CONFIG_OK, MODO_DEMO } from "@/lib/config";
 
 /** Usuária logada + loja dela. Redireciona para /login se não houver sessão. */
 export const getMinhaLoja = cache(async () => {
+  if (!MODO_DEMO && !CONFIG_OK) redirect("/status");
   const supabase = await createClient();
   const {
     data: { user },
