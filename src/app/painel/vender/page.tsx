@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { getMinhaLoja, getSacolaAberta } from "@/lib/loja";
 import { CaixaVenda } from "./caixa";
+import { hojeBrasil } from "@/lib/cobranca";
 
 export const metadata: Metadata = { title: "Vender" };
 
@@ -21,7 +22,11 @@ export default async function VenderPage() {
           <Link href="/painel/sacola" className="font-bold text-deep">Abrir sacola</Link>
         </p>
       )}
-      <CaixaVenda percentualLucro={Number(sacola?.percentual_lucro ?? 0)} />
+      <CaixaVenda
+        percentualLucro={Number(sacola?.percentual_lucro ?? 0)}
+        sacola={sacola ? { nome: sacola.nome, devolverAte: sacola.devolver_ate } : null}
+        hoje={hojeBrasil()}
+      />
     </>
   );
 }

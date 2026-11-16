@@ -30,6 +30,7 @@ export default async function StatusPage() {
     ["NEXT_PUBLIC_SITE_URL", Boolean(process.env.NEXT_PUBLIC_SITE_URL), process.env.NEXT_PUBLIC_SITE_URL?.trim() || "não configurada (opcional)"],
     ["Conexão com o banco", banco.ok, banco.detalhe],
     ["WhatsApp (Evolution API)", evolutionConfigurada, evolutionConfigurada ? "configurada" : "não configurada (opcional)"],
+    ["CRON_SECRET (cobrança automática)", Boolean(process.env.CRON_SECRET?.trim()), process.env.CRON_SECRET?.trim() ? "configurada" : "não configurada (lembretes automáticos desligados)"],
   ];
 
   return (

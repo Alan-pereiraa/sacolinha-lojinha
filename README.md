@@ -138,6 +138,32 @@ Cada peça vai como uma mensagem com foto, tamanhos disponíveis, preço e o lin
 - **O que vale fazer:** usar o número da loja (não o pessoal) e mandar para grupos em que as clientes entraram por vontade própria, poucas vezes por semana.
 - **Caminho oficial:** se um dia precisar dele, a própria Evolution API também aceita a WhatsApp Cloud API da Meta (paga por conversa).
 
+## Caderninho e cobrança automática
+
+Na tela **Vender**, a forma de pagamento **Caderninho** pede o nome e o WhatsApp de quem vai pagar
+(só daquela venda, sem cadastro de cliente) e divide em 1 a 6 parcelas. O vencimento pode ser:
+
+- **uma data escolhida** — a 1ª parcela nessa data e as outras a cada mês; ou
+- **até o fechamento da sacola** — as parcelas são distribuídas até o prazo de devolução.
+
+A tela **Caderninho** mostra quem deve, o que está atrasado e permite marcar *Recebi*, mudar a data,
+abrir o WhatsApp com a cobrança pronta (funciona sem servidor) ou *Cobrar agora* (com a Evolution API).
+Ali também se configura: lembrete X dias antes, no dia, repetição depois de vencida, limite de lembretes,
+chave Pix e o texto da mensagem (com `{nome}`, `{valor}`, `{situacao}`…).
+
+**Lembretes automáticos** saem uma vez por dia, por volta das 9h (Vercel Cron, `vercel.json`):
+
+1. Gere um segredo longo e coloque na Vercel como `CRON_SECRET` (tipo *Secret*).
+2. Guarde no banco só o hash dele (SQL Editor do Supabase):
+   ```sql
+   insert into privado.config (chave, valor)
+   values ('cron_hash', encode(extensions.digest('SEU_CRON_SECRET', 'sha256'), 'hex'))
+   on conflict (chave) do update set valor = excluded.valor;
+   ```
+3. Conecte o WhatsApp da loja em **Divulgar** (precisa da Evolution API no ar).
+
+No plano Hobby a Vercel roda o agendamento uma vez por dia, em algum momento dentro da hora marcada.
+
 ## Deploy
 
 - **Next.js:** Vercel. Importe o repositório e configure as mesmas variáveis do `.env.local`.

@@ -34,7 +34,7 @@ export const FORMAS_PAGAMENTO = {
   pix: "Pix",
   cartao: "Cartão",
   dinheiro: "Dinheiro",
-  fiado: "Fiado",
+  fiado: "Caderninho",
 } as const;
 
 /** Link do WhatsApp com mensagem pronta. */

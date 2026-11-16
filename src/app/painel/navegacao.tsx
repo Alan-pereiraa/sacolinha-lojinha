@@ -2,15 +2,19 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { IconeCasa, IconeCodigo, IconeLoja, IconeMegafone, IconeSacola } from "@/components/icones";
+import { IconeCaderno, IconeCasa, IconeCodigo, IconeLoja, IconeMegafone, IconeSacola } from "@/components/icones";
 
 const ITENS = [
   { href: "/painel", rotulo: "Início", Icone: IconeCasa },
   { href: "/painel/sacola", rotulo: "Sacola", Icone: IconeSacola },
   { href: "/painel/vender", rotulo: "Vender", Icone: IconeCodigo },
+  { href: "/painel/caderninho", rotulo: "Caderninho", Icone: IconeCaderno },
   { href: "/painel/divulgar", rotulo: "Divulgar", Icone: IconeMegafone },
   { href: "/painel/loja", rotulo: "Minha loja", Icone: IconeLoja },
 ];
+
+/** No celular cabem 5: Divulgar fica acessível pela tela Minha loja. */
+const ITENS_CELULAR = [ITENS[0], ITENS[3], ITENS[2], ITENS[1], { ...ITENS[5], rotulo: "Loja" }];
 
 function ativo(pathname: string, href: string) {
   return href === "/painel" ? pathname === "/painel" : pathname.startsWith(href);
@@ -47,7 +51,7 @@ export function MenuInferior() {
       aria-label="Menu"
       className="fixed inset-x-0 bottom-0 z-30 flex items-end justify-around rounded-t-[28px] bg-white px-2 pt-2 pb-[max(env(safe-area-inset-bottom),12px)] shadow-[0_-8px_24px_rgba(59,15,38,0.08)] lg:hidden"
     >
-      {ITENS.map(({ href, rotulo, Icone }) => {
+      {ITENS_CELULAR.map(({ href, rotulo, Icone }) => {
         const on = ativo(pathname, href);
         if (href === "/painel/vender") {
           return (

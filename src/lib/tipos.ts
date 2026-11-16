@@ -28,6 +28,31 @@ export type Loja = {
   wa_instancia?: string | null;
   wa_grupo_id?: string | null;
   wa_grupo_nome?: string | null;
+  cobranca_ativa?: boolean;
+  cobranca_dias_antes?: number;
+  cobranca_repetir_dias?: number;
+  cobranca_max_atraso?: number;
+  cobranca_mensagem?: string | null;
+  chave_pix?: string | null;
+};
+
+export type Parcela = {
+  id: string;
+  venda_id: string;
+  numero: number;
+  total_parcelas: number;
+  valor: number;
+  vence_em: string;
+  pago_em: string | null;
+  lembretes: number;
+  ultimo_lembrete_em: string | null;
+  vendas?: {
+    cliente_nome: string | null;
+    cliente_whatsapp: string | null;
+    cobranca_automatica: boolean;
+    criado_em: string;
+    venda_itens?: { produto_nome: string; tamanho: string; quantidade: number }[];
+  } | null;
 };
 
 export type Sacola = {
@@ -69,9 +94,12 @@ export type Venda = {
   id: string;
   total: number;
   lucro: number;
+  /** "fiado" é o Caderninho (o nome no banco ficou o antigo) */
   forma_pagamento: "pix" | "cartao" | "dinheiro" | "fiado";
   parcelas: number;
-  pagador: string | null;
+  cliente_nome: string | null;
+  cliente_whatsapp?: string | null;
+  cobranca_automatica?: boolean;
   pago: boolean;
   criado_em: string;
   venda_itens?: { produto_nome: string; tamanho: string; quantidade: number }[];

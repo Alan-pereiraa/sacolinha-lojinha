@@ -53,17 +53,29 @@ export function dadosIniciais(): Record<string, Linha[]> {
     });
   });
 
-  const venda = (k: number, dias: number, forma: string, total: number, itens: [string, string][], pagador: string | null = null, parcelas = 1, pago = true) => ({
-    venda: { id: id(300 + k), loja_id: LOJA_ID, sacola_id: SACOLA_ID, total, lucro: Math.round(total * 30) / 100, forma_pagamento: forma, parcelas, pagador, pago, criado_em: diasAtras(dias) },
+  const hojeISO = (d: number) => new Date(agora.getTime() + d * 86_400_000).toISOString().slice(0, 10);
+  const venda = (k: number, dias: number, forma: string, total: number, itens: [string, string][], cliente: string | null = null, whats: string | null = null, parcelasVenc: number[] = []) => ({
+    venda: {
+      id: id(300 + k), loja_id: LOJA_ID, sacola_id: SACOLA_ID, total, lucro: Math.round(total * 30) / 100, forma_pagamento: forma,
+      parcelas: Math.max(1, parcelasVenc.length), cliente_nome: cliente, cliente_whatsapp: whats, cobranca_automatica: Boolean(whats),
+      pago: forma !== "fiado", criado_em: diasAtras(dias),
+    },
     itens: itens.map(([produto_nome, tamanho], j) => ({ id: id(400 + k * 10 + j), venda_id: id(300 + k), variante_id: null, produto_nome, tamanho, preco: total / itens.length, quantidade: 1 })),
+    parcelas: parcelasVenc.map((venc, j) => ({
+      id: id(600 + k * 10 + j), loja_id: LOJA_ID, venda_id: id(300 + k), numero: j + 1, total_parcelas: parcelasVenc.length,
+      valor: Math.round((total / parcelasVenc.length) * 100) / 100, vence_em: hojeISO(venc),
+      pago_em: venc < -20 ? diasAtras(-venc - 25) : null, lembretes: venc < 0 ? 1 : 0, lembretes_atraso: venc < 0 ? 1 : 0,
+      ultimo_lembrete_em: venc < 0 ? hojeISO(venc) : null, criado_em: diasAtras(dias),
+    })),
   });
   const vendas = [
     venda(1, 0, "pix", 89.9, [["Conjunto Renda Rosé", "42"]]),
     venda(2, 1, "cartao", 74.7, [["Calcinha Fio Renda", "M"], ["Calcinha Fio Renda", "M"], ["Calcinha Fio Renda", "P"]]),
-    venda(3, 2, "fiado", 99.9, [["Body Rendado Noite", "M"]], "Juliana", 3, false),
+    venda(3, 2, "fiado", 99.9, [["Body Rendado Noite", "M"]], "Juliana Costa", "5542999991111", [-3, 28, 58]),
     venda(4, 3, "dinheiro", 79.9, [["Camisola Cetim Blush", "M"]]),
-    venda(5, 4, "fiado", 59.9, [["Sutiã Push-up Delicate", "44"]], "Patrícia do salão", 1, false),
+    venda(5, 4, "fiado", 59.9, [["Sutiã Push-up Delicate", "44"]], "Patrícia do salão", "5542999992222", [1]),
     venda(6, 6, "pix", 119.6, [["Calcinha Cintura Alta", "M"], ["Calcinha Fio Renda", "G"], ["Sutiã Push-up Delicate", "42"]]),
+    venda(7, 9, "fiado", 109.9, [["Conjunto Tule Bordado", "44"]], "Larissa Ramos", null, [12, 46]),
   ];
 
   return {
@@ -71,6 +83,8 @@ export function dadosIniciais(): Record<string, Linha[]> {
       id: LOJA_ID, dono_id: DEMO_USER.id, nome: "Boutique Rosé", slug: "boutique-rose", cidade: "Guarapuava, PR",
       whatsapp: "5542999990000", tema: "rosa", fonte: "elegante", formato: "arco", logo_url: null, capa_url: null,
       wa_instancia: null, wa_grupo_id: null, wa_grupo_nome: null, criado_em: diasAtras(20),
+      cobranca_ativa: true, cobranca_dias_antes: 1, cobranca_repetir_dias: 3, cobranca_max_atraso: 3,
+      cobranca_mensagem: null, chave_pix: "boutiquerose@email.com",
     }],
     sacolas: [{
       id: SACOLA_ID, loja_id: LOJA_ID, nome: "Sacola de Novembro", recebida_em: diasAtras(14).slice(0, 10),
@@ -81,5 +95,6 @@ export function dadosIniciais(): Record<string, Linha[]> {
     variantes: linhasVariantes,
     vendas: vendas.map((v) => v.venda),
     venda_itens: vendas.flatMap((v) => v.itens),
+    parcelas: vendas.flatMap((v) => v.parcelas),
   };
 }

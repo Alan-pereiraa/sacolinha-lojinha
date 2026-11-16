@@ -35,4 +35,5 @@ export const IconeMegafone = (p: P) => <Base {...p}><path d="M3 11v2a2 2 0 0 0 2
 export const IconeSair = (p: P) => <Base {...p}><path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10" /></Base>;
 export const IconeUpload = (p: P) => <Base {...p}><path d="M12 16V4M7 9l5-5 5 5M5 20h14" /></Base>;
 export const IconeCaixa = (p: P) => <Base {...p}><path d="M4 8l8-4 8 4v8l-8 4-8-4z" /><path d="M4 8l8 4 8-4M12 12v8" /></Base>;
+export const IconeCaderno = (p: P) => <Base {...p}><path d="M6 3h11a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6z" /><path d="M6 3v18M4 7h4M4 12h4M4 17h4M11 8h5M11 12h5" /></Base>;
 export const IconeEditar = (p: P) => <Base {...p}><path d="M4 20h4L19 9l-4-4L4 16v4z" /></Base>;

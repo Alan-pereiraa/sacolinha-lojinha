@@ -24,6 +24,10 @@ function anexarRelacoes(tabela: string, linhas: Linha[], select: string) {
     if (tabela === "produtos" && select.includes("variantes")) r.variantes = db.variantes.filter((v) => v.produto_id === l.id);
     if (tabela === "variantes" && select.includes("produtos")) r.produtos = db.produtos.find((p) => p.id === l.produto_id) ?? null;
     if (tabela === "vendas" && select.includes("venda_itens")) r.venda_itens = db.venda_itens.filter((i) => i.venda_id === l.id);
+    if (tabela === "parcelas" && select.includes("vendas")) {
+      const v = db.vendas.find((x) => x.id === l.venda_id);
+      r.vendas = v ? { ...v, venda_itens: db.venda_itens.filter((i) => i.venda_id === v.id) } : null;
+    }
     return r;
   });
 }
@@ -76,6 +80,17 @@ class Consulta implements PromiseLike<{ data: unknown; error: { message: string 
   }
   gt(campo: string, v: number) {
     this.filtros.push((l) => Number(valor(l, campo)) > v);
+    return this;
+  }
+  is(campo: string, v: null) {
+    this.filtros.push((l) => (valor(l, campo) ?? null) === v);
+    return this;
+  }
+  gte(campo: string, v: string | number) {
+    this.filtros.push((l) => {
+      const x = valor(l, campo);
+      return x !== null && x !== undefined && (x as string | number) >= v;
+    });
     return this;
   }
   ilike(campo: string, padrao: string) {
@@ -134,6 +149,7 @@ class Consulta implements PromiseLike<{ data: unknown; error: { message: string 
         if (conflito) return { data: null, error: { message: "duplicate key value violates unique constraint variantes_loja_id_codigo_barras_key" } };
       }
       tabela.forEach((l) => ids.has(l.id) && Object.assign(l, p));
+      if (this.tabela === "parcelas") sincronizarVendas();
       return { data: null, error: null };
     }
     if (this.op === "delete") {
@@ -168,10 +184,25 @@ class Consulta implements PromiseLike<{ data: unknown; error: { message: string 
   }
 }
 
-function finalizarVenda(args: { p_itens: { variante_id: string; quantidade: number }[]; p_forma: string; p_parcelas: number; p_pagador: string | null }) {
+type ArgsVenda = {
+  p_itens: { variante_id: string; quantidade: number }[];
+  p_forma: string;
+  p_parcelas: number;
+  p_cliente_nome: string | null;
+  p_cliente_whatsapp: string | null;
+  p_primeiro_venc: string | null;
+  p_venc_pela_sacola: boolean;
+  p_cobrar_auto: boolean;
+};
+
+function finalizarVenda(args: ArgsVenda) {
   const db = banco();
   const sacola = db.sacolas.find((s) => s.loja_id === LOJA_ID && s.status === "aberta");
-  const itens: Linha[] = [];
+  if (args.p_forma === "caderninho" && !args.p_cliente_nome?.trim()) return { data: null, error: { message: "Caderninho: informe o nome de quem vai pagar" } };
+  let whats = (args.p_cliente_whatsapp ?? "").replace(/\D/g, "") || null;
+  if (whats && whats.length >= 10 && whats.length <= 11) whats = "55" + whats;
+  if (whats && (whats.length < 12 || whats.length > 13)) return { data: null, error: { message: "WhatsApp da cliente inválido" } };
+  const itens: { v: Linha; p: Linha; q: number }[] = [];
   let total = 0;
   for (const it of args.p_itens) {
     const v = db.variantes.find((x) => x.id === it.variante_id && x.loja_id === LOJA_ID);
@@ -181,19 +212,56 @@ function finalizarVenda(args: { p_itens: { variante_id: string; quantidade: numb
     itens.push({ v, p, q: it.quantidade });
     total += Number(p.preco) * it.quantidade;
   }
+  total = Math.round(total * 100) / 100;
   const vendaId = crypto.randomUUID();
-  for (const { v, p, q } of itens as { v: Linha; p: Linha; q: number }[]) {
+  for (const { v, p, q } of itens) {
     v.estoque = (v.estoque as number) - q;
     v.vendidos = (v.vendidos as number) + q;
     db.venda_itens.push({ id: crypto.randomUUID(), venda_id: vendaId, variante_id: v.id, produto_nome: p.nome, tamanho: v.tamanho, preco: p.preco, quantidade: q });
   }
+  const cad = args.p_forma === "caderninho";
+  const n = cad ? Math.max(1, Math.min(12, args.p_parcelas)) : 1;
   db.vendas.push({
-    id: vendaId, loja_id: LOJA_ID, sacola_id: sacola?.id ?? null, total: Math.round(total * 100) / 100,
-    lucro: Math.round(total * Number(sacola?.percentual_lucro ?? 0)) / 100, forma_pagamento: args.p_forma,
-    parcelas: args.p_forma === "fiado" ? args.p_parcelas : 1, pagador: args.p_pagador, pago: args.p_forma !== "fiado",
-    criado_em: new Date().toISOString(),
+    id: vendaId, loja_id: LOJA_ID, sacola_id: sacola?.id ?? null, total,
+    lucro: Math.round(total * Number(sacola?.percentual_lucro ?? 0)) / 100, forma_pagamento: cad ? "fiado" : args.p_forma,
+    parcelas: n, cliente_nome: args.p_cliente_nome?.trim() || null, cliente_whatsapp: cad ? whats : null,
+    cobranca_automatica: cad && Boolean(whats) && args.p_cobrar_auto, pago: !cad, criado_em: new Date().toISOString(),
   });
+  if (cad) {
+    const hoje = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
+    const dia = (iso: string) => new Date(iso + "T12:00:00");
+    const base = Math.trunc((total / n) * 100) / 100;
+    for (let i = 1; i <= n; i++) {
+      let venc: Date;
+      if (args.p_venc_pela_sacola && sacola) {
+        const dias = Math.max(0, Math.round((dia(String(sacola.devolver_ate)).getTime() - dia(hoje).getTime()) / 86_400_000));
+        venc = dia(hoje);
+        venc.setDate(venc.getDate() + Math.ceil((dias * i) / n));
+      } else {
+        venc = dia(args.p_primeiro_venc ?? hoje);
+        if (!args.p_primeiro_venc) venc.setDate(venc.getDate() + 30);
+        const d = venc.getDate();
+        venc.setDate(1);
+        venc.setMonth(venc.getMonth() + i - 1);
+        venc.setDate(Math.min(d, new Date(venc.getFullYear(), venc.getMonth() + 1, 0).getDate()));
+      }
+      db.parcelas.push({
+        id: crypto.randomUUID(), loja_id: LOJA_ID, venda_id: vendaId, numero: i, total_parcelas: n,
+        valor: i === n ? Math.round((total - base * (n - 1)) * 100) / 100 : base, vence_em: venc.toISOString().slice(0, 10),
+        pago_em: null, lembretes: 0, lembretes_atraso: 0, ultimo_lembrete_em: null, criado_em: new Date().toISOString(),
+      });
+    }
+  }
   return { data: vendaId, error: null };
+}
+
+/** No demo, receber/desfazer parcela atualiza venda.pago como o gatilho do banco. */
+function sincronizarVendas() {
+  const db = banco();
+  for (const v of db.vendas) {
+    if (v.forma_pagamento !== "fiado") continue;
+    v.pago = !db.parcelas.some((p) => p.venda_id === v.id && !p.pago_em);
+  }
 }
 
 const ok = { data: {}, error: null };
@@ -203,7 +271,7 @@ export function criarClienteDemo() {
     from: (tabela: string) => new Consulta(tabela),
     rpc: async (nome: string, args: Record<string, unknown>) => {
       if (nome === "slug_disponivel") return { data: !banco().lojas.some((l) => l.slug === args.p_slug), error: null };
-      if (nome === "finalizar_venda") return finalizarVenda(args as Parameters<typeof finalizarVenda>[0]);
+      if (nome === "finalizar_venda") return finalizarVenda(args as unknown as ArgsVenda);
       return { data: null, error: { message: `rpc ${nome} indisponível na demonstração` } };
     },
     auth: {

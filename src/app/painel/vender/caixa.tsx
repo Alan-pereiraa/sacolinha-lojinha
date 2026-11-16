@@ -20,22 +20,62 @@ type Item = {
   quantidade: number;
 };
 
-type Forma = "pix" | "cartao" | "dinheiro" | "fiado";
+type Forma = "pix" | "cartao" | "dinheiro" | "caderninho";
 
 const FORMAS: { id: Forma; rotulo: string; sub: string }[] = [
   { id: "pix", rotulo: "Pix", sub: "na hora" },
   { id: "cartao", rotulo: "Cartão", sub: "débito ou crédito" },
   { id: "dinheiro", rotulo: "Dinheiro", sub: "com troco" },
-  { id: "fiado", rotulo: "Fiado / Parcelado", sub: "paga depois" },
+  { id: "caderninho", rotulo: "Caderninho", sub: "paga depois, em parcelas" },
 ];
 
-export function CaixaVenda({ percentualLucro }: { percentualLucro: number }) {
+/** Datas das parcelas (mesma regra do banco), para mostrar antes de finalizar. */
+function previsaoParcelas(n: number, modo: "data" | "sacola", primeira: string, hoje: string, devolverAte: string | null) {
+  const dia = (iso: string) => new Date(iso + "T12:00:00");
+  const iso = (d: Date) => d.toISOString().slice(0, 10);
+  return Array.from({ length: n }, (_, k) => {
+    const i = k + 1;
+    if (modo === "sacola" && devolverAte) {
+      const total = Math.max(0, Math.round((dia(devolverAte).getTime() - dia(hoje).getTime()) / 86_400_000));
+      const d = dia(hoje);
+      d.setDate(d.getDate() + Math.ceil((total * i) / n));
+      return iso(d);
+    }
+    const d = dia(primeira || hoje);
+    const diaDoMes = d.getDate();
+    d.setDate(1);
+    d.setMonth(d.getMonth() + k);
+    d.setDate(Math.min(diaDoMes, new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate()));
+    return iso(d);
+  });
+}
+
+const curta = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
+
+export function CaixaVenda({
+  percentualLucro,
+  sacola,
+  hoje,
+}: {
+  percentualLucro: number;
+  sacola: { nome: string; devolverAte: string } | null;
+  hoje: string;
+}) {
   const [itens, setItens] = useState<Item[]>([]);
   const [aviso, setAviso] = useState<{ tipo: "ok" | "erro"; texto: string; codigo?: string } | null>(null);
   const [codigoDigitado, setCodigoDigitado] = useState("");
   const [forma, setForma] = useState<Forma>("pix");
   const [parcelas, setParcelas] = useState(1);
-  const [pagador, setPagador] = useState("");
+  const [clienteNome, setClienteNome] = useState("");
+  const [clienteWhats, setClienteWhats] = useState("");
+  const [modoVenc, setModoVenc] = useState<"data" | "sacola">("data");
+  const emTrintaDias = (() => {
+    const d = new Date(hoje + "T12:00:00");
+    d.setDate(d.getDate() + 30);
+    return d.toISOString().slice(0, 10);
+  })();
+  const [primeiroVenc, setPrimeiroVenc] = useState(emTrintaDias);
+  const [cobrarAuto, setCobrarAuto] = useState(true);
   const [concluida, setConcluida] = useState<number | null>(null);
   const [buscando, setBuscando] = useState(false);
   const [finalizando, iniciar] = useTransition();
@@ -83,8 +123,12 @@ export function CaixaVenda({ percentualLucro }: { percentualLucro: number }) {
       const r = await finalizarVenda({
         itens: itens.map((i) => ({ variante_id: i.variante_id, quantidade: i.quantidade })),
         forma,
-        parcelas: forma === "fiado" ? parcelas : 1,
-        pagador: pagador || undefined,
+        parcelas: forma === "caderninho" ? parcelas : 1,
+        clienteNome: clienteNome || undefined,
+        clienteWhatsapp: clienteWhats || undefined,
+        vencimento: modoVenc,
+        primeiroVencimento: primeiroVenc,
+        cobrarAuto,
       });
       if ("erro" in r && r.erro) {
         avisar({ tipo: "erro", texto: r.erro });
@@ -92,7 +136,11 @@ export function CaixaVenda({ percentualLucro }: { percentualLucro: number }) {
       }
       setConcluida(total);
       setItens([]);
-      setPagador("");
+      setClienteNome("");
+      setClienteWhats("");
+      setModoVenc("data");
+      setPrimeiroVenc(emTrintaDias);
+      setCobrarAuto(true);
       setForma("pix");
       setParcelas(1);
     });
@@ -226,18 +274,29 @@ export function CaixaVenda({ percentualLucro }: { percentualLucro: number }) {
               </button>
             ))}
           </div>
-          {forma === "fiado" && (
-            <div className="flex flex-col gap-3 rounded-[20px] bg-soft p-4">
+          {forma === "caderninho" && (
+            <div className="flex flex-col gap-4 rounded-[20px] bg-soft p-4">
+              <div className="flex flex-wrap gap-3">
+                <div className="flex flex-[1_1_200px] flex-col gap-1.5">
+                  <label htmlFor="cliente-nome" className="rotulo">Quem vai pagar</label>
+                  <input id="cliente-nome" value={clienteNome} onChange={(e) => setClienteNome(e.target.value)} className="campo" placeholder="Ex.: Juliana, do salão" autoComplete="off" />
+                </div>
+                <div className="flex flex-[1_1_200px] flex-col gap-1.5">
+                  <label htmlFor="cliente-whats" className="rotulo">WhatsApp dela</label>
+                  <input id="cliente-whats" value={clienteWhats} onChange={(e) => setClienteWhats(e.target.value)} inputMode="tel" className="campo" placeholder="(42) 99999-0000" autoComplete="off" />
+                </div>
+              </div>
+
               <div className="flex flex-wrap items-center gap-3">
                 <span className="text-sm font-bold">Em quantas vezes?</span>
-                <div className="flex gap-2">
-                  {[1, 2, 3, 4].map((n) => (
+                <div className="flex flex-wrap gap-2">
+                  {[1, 2, 3, 4, 5, 6].map((n) => (
                     <button
                       key={n}
                       type="button"
                       aria-pressed={parcelas === n}
                       onClick={() => setParcelas(n)}
-                      className={`h-11 w-14 rounded-2xl text-sm font-bold ${parcelas === n ? "bg-deep text-white" : "bg-white text-ink"}`}
+                      className={`h-11 w-12 rounded-2xl text-sm font-bold ${parcelas === n ? "bg-deep text-white" : "bg-white text-ink"}`}
                     >
                       {n}x
                     </button>
@@ -245,10 +304,51 @@ export function CaixaVenda({ percentualLucro }: { percentualLucro: number }) {
                 </div>
                 {total > 0 && <span className="text-sm text-muted">{parcelas}x de {brl(total / parcelas)}</span>}
               </div>
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="pagador" className="rotulo">Quem vai pagar? (só para você lembrar)</label>
-                <input id="pagador" value={pagador} onChange={(e) => setPagador(e.target.value)} className="campo" placeholder="Ex.: Juliana, do salão" />
-              </div>
+
+              <fieldset className="flex flex-col gap-2">
+                <legend className="mb-2 text-sm font-bold">Vencimento</legend>
+                <label className={`flex cursor-pointer items-center gap-3 rounded-2xl border-[1.5px] bg-white px-4 py-3 ${modoVenc === "data" ? "border-deep" : "border-transparent"}`}>
+                  <input type="radio" name="venc" checked={modoVenc === "data"} onChange={() => setModoVenc("data")} className="size-5 accent-[var(--deep)]" />
+                  <span className="flex flex-1 flex-wrap items-center gap-x-3 gap-y-1">
+                    <span className="font-semibold">Eu escolho a data</span>
+                    {modoVenc === "data" && (
+                      <span className="flex items-center gap-2 text-sm">
+                        <span className="text-muted">1ª parcela em</span>
+                        <input type="date" aria-label="Data da primeira parcela" min={hoje} value={primeiroVenc} onChange={(e) => setPrimeiroVenc(e.target.value)} className="campo h-10 w-auto px-3" />
+                        {parcelas > 1 && <span className="text-muted">e as outras a cada mês</span>}
+                      </span>
+                    )}
+                  </span>
+                </label>
+                <label className={`flex items-center gap-3 rounded-2xl border-[1.5px] bg-white px-4 py-3 ${sacola ? "cursor-pointer" : "opacity-50"} ${modoVenc === "sacola" ? "border-deep" : "border-transparent"}`}>
+                  <input type="radio" name="venc" disabled={!sacola} checked={modoVenc === "sacola"} onChange={() => setModoVenc("sacola")} className="size-5 accent-[var(--deep)]" />
+                  <span className="flex flex-col">
+                    <span className="font-semibold">Até o fechamento da sacola</span>
+                    <span className="text-sm text-muted">
+                      {sacola ? `${sacola.nome}: devolver até ${curta(sacola.devolverAte)}${parcelas > 1 ? " (parcelas distribuídas até lá)" : ""}` : "Sem sacola aberta"}
+                    </span>
+                  </span>
+                </label>
+                {total > 0 && (
+                  <p className="text-sm text-muted">
+                    {previsaoParcelas(parcelas, modoVenc, primeiroVenc, hoje, sacola?.devolverAte ?? null)
+                      .map((d, i) => `${i + 1}ª ${curta(d)}`)
+                      .join(" · ")}
+                  </p>
+                )}
+              </fieldset>
+
+              <label className="flex items-start gap-3 text-sm">
+                <input type="checkbox" checked={cobrarAuto} onChange={(e) => setCobrarAuto(e.target.checked)} className="mt-0.5 size-5 accent-[var(--deep)]" />
+                <span>
+                  <strong>Cobrar automaticamente no WhatsApp</strong>
+                  <span className="block text-muted">
+                    {clienteWhats.replace(/\D/g, "").length >= 10
+                      ? "Ela recebe um lembrete nos dias que você configurou no Caderninho."
+                      : "Informe o WhatsApp dela para ativar os lembretes."}
+                  </span>
+                </span>
+              </label>
             </div>
           )}
         </section>
@@ -259,7 +359,7 @@ export function CaixaVenda({ percentualLucro }: { percentualLucro: number }) {
         <div className="flex justify-between"><span>{qtdPecas} {qtdPecas === 1 ? "peça" : "peças"}</span><span>{brl(total)}</span></div>
         <div className="flex justify-between">
           <span>Pagamento</span>
-          <span>{forma === "fiado" ? `${parcelas}x de ${brl(total / parcelas)}` : FORMAS.find((f) => f.id === forma)?.rotulo}</span>
+          <span>{forma === "caderninho" ? `Caderninho ${parcelas}x de ${brl(total / parcelas)}` : FORMAS.find((f) => f.id === forma)?.rotulo}</span>
         </div>
         <div className="h-px bg-white/25" />
         <div className="flex items-baseline justify-between"><span>Total</span><span className="text-4xl font-bold">{brl(total)}</span></div>
