@@ -1,10 +1,12 @@
+import { LogoSacolinha } from "@/components/logo-sacolinha";
+
 import { IlustracaoPeca } from "@/components/peca";
 
 /** Painel lateral colorido das telas de login/cadastro. */
 export function PainelMarca({ titulo, texto }: { titulo: React.ReactNode; texto: string }) {
   return (
     <section className="relative flex min-h-[320px] flex-[1_1_480px] flex-col justify-between gap-10 overflow-hidden bg-deep p-8 text-white sm:p-12">
-      <span className="font-elegante text-3xl italic">Sacolinha</span>
+      <LogoSacolinha variante="branca" tamanho={30} />
       <div className="flex max-w-md flex-col gap-4">
         <h1 className="titulo text-4xl leading-[1.05] sm:text-5xl">{titulo}</h1>
         <p className="text-[17px] leading-relaxed opacity-90">{texto}</p>

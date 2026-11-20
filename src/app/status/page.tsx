@@ -1,8 +1,10 @@
+import { LogoSacolinha } from "@/components/logo-sacolinha";
 import type { Metadata } from "next";
 import { connection } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { CONFIG_OK, MODO_DEMO, PROBLEMAS_CONFIG, SUPABASE_ANON_KEY, SUPABASE_URL } from "@/lib/config";
 import { evolutionConfigurada } from "@/lib/evolution";
+
 
 export const metadata: Metadata = { title: "Diagnóstico", robots: { index: false } };
 
@@ -35,7 +37,7 @@ export default async function StatusPage() {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col gap-6 px-6 py-12">
-      <span className="font-elegante text-3xl text-deep italic">Sacolinha</span>
+      <LogoSacolinha tamanho={30} />
       <h1 className="titulo text-4xl">Diagnóstico</h1>
       {PROBLEMAS_CONFIG.length > 0 && (
         <ul className="list-disc rounded-2xl bg-[#FFF1D6] py-3 pr-4 pl-9 text-sm text-[#5C3A00]">

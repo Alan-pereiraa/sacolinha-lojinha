@@ -1,7 +1,9 @@
+import { LogoSacolinha } from "@/components/logo-sacolinha";
 import Link from "next/link";
 import type { Loja } from "@/lib/tipos";
 import { fonteDaLoja } from "@/lib/temas";
 import { RedesSociais } from "@/components/vitrine/secoes";
+
 
 export function CabecalhoLoja({ loja, children }: { loja: Loja; children?: React.ReactNode }) {
   const fonte = fonteDaLoja(loja.fonte);
@@ -34,7 +36,7 @@ export function RodapeLoja({ loja }: { loja: Loja }) {
         <RedesSociais loja={loja} />
       </span>
       <span>
-        Loja criada com <Link href="/" className="font-elegante text-base text-deep italic">Sacolinha</Link>
+        Loja criada com <Link href="/" aria-label="Sacolinha" className="inline-flex align-middle"><LogoSacolinha tamanho={15} /></Link>
       </span>
     </footer>
   );

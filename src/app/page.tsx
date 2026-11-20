@@ -1,12 +1,14 @@
+import { LogoSacolinha } from "@/components/logo-sacolinha";
 import Link from "next/link";
 import { IlustracaoPeca } from "@/components/peca";
 import { IconeCaixa, IconeCodigo, IconeMegafone, IconeSacola } from "@/components/icones";
+
 
 export default function Home() {
   return (
     <div className="min-h-screen bg-blush">
       <header className="mx-auto flex max-w-[1200px] items-center justify-between px-6 py-6">
-        <span className="font-elegante text-3xl text-deep italic">Sacolinha</span>
+        <Link href="/" aria-label="Sacolinha, início"><LogoSacolinha tamanho={30} /></Link>
         <nav className="flex gap-2">
           <Link href="/login" className="btn-secundario">Entrar</Link>
           <Link href="/cadastro" className="btn-primario">Criar minha loja</Link>
