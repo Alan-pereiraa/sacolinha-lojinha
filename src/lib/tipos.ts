@@ -34,6 +34,20 @@ export type Loja = {
   cobranca_max_atraso?: number;
   cobranca_mensagem?: string | null;
   chave_pix?: string | null;
+  cor_personalizada?: string | null;
+  aviso_topo?: string | null;
+  destaque_etiqueta?: string | null;
+  destaque_titulo?: string | null;
+  destaque_texto?: string | null;
+  destaque_botao?: string | null;
+  novidades_titulo?: string | null;
+  sobre_titulo?: string | null;
+  sobre_texto?: string | null;
+  contato_texto?: string | null;
+  vantagens?: Vantagem[] | null;
+  secoes?: Secao[] | null;
+  instagram?: string | null;
+  tiktok?: string | null;
 };
 
 export type Parcela = {
@@ -63,6 +77,7 @@ export type Sacola = {
   devolver_ate: string;
   percentual_lucro: number;
   status: "aberta" | "fechada";
+  fornecedora_id?: string | null;
 };
 
 export type Variante = {
@@ -107,4 +122,25 @@ export type Venda = {
 
 /** Colunas da loja que a vitrine pública pode ler (o anon não tem acesso às colunas de WhatsApp). */
 export const COLUNAS_LOJA_PUBLICA =
-  "id, dono_id, nome, slug, cidade, whatsapp, tema, fonte, formato, logo_url, capa_url";
+  "id, dono_id, nome, slug, cidade, whatsapp, tema, fonte, formato, logo_url, capa_url, " +
+  "cor_personalizada, aviso_topo, destaque_etiqueta, destaque_titulo, destaque_texto, destaque_botao, " +
+  "novidades_titulo, sobre_titulo, sobre_texto, contato_texto, vantagens, secoes, instagram, tiktok";
+
+export type Fornecedora = {
+  id: string;
+  nome: string;
+  percentual_lucro: number;
+  prazo_dias: number;
+};
+
+/** Sacola aberta com o nome da empresa (para listas e seletores). */
+export type SacolaComEmpresa = Sacola & { fornecedoras?: { nome: string } | null };
+
+export type SecaoId = "destaque" | "vantagens" | "novidades" | "sobre" | "contato";
+export type Secao = { id: SecaoId; visivel: boolean };
+export type Vantagem = { titulo: string; texto: string };
+
+/** "Sacola de Novembro · Lingerie Bella" */
+export function nomeDaSacola(s: SacolaComEmpresa) {
+  return s.fornecedoras?.nome ? `${s.nome} · ${s.fornecedoras.nome}` : s.nome;
+}

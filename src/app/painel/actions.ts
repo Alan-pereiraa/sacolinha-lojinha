@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { getMinhaLoja, getSacolaAberta } from "@/lib/loja";
+import { getMinhaLoja, getSacolasAbertas } from "@/lib/loja";
 import { hojeBrasil, montarMensagem } from "@/lib/cobranca";
 import * as evo from "@/lib/evolution";
 
@@ -13,7 +13,10 @@ function erroAmigavel(msg: string) {
   if (/variantes_loja_id_codigo_barras_key|duplicate key/i.test(msg))
     return "Esse código de barras já está cadastrado em outra peça.";
   if (/Sem estoque/i.test(msg)) return msg.replace(/^.*Sem estoque/, "Sem estoque");
-  if (/sacolas_uma_aberta/i.test(msg)) return "Já existe uma sacola aberta. Feche a atual antes de abrir outra.";
+  if (/sacolas_uma_aberta_por_empresa/i.test(msg)) return "Essa empresa já tem uma sacola aberta. Feche a atual antes de abrir outra dela.";
+  if (/sacolas_uma_aberta/i.test(msg)) return "O banco ainda só aceita uma sacola aberta por vez. Falta rodar o ajuste do README (Várias empresas).";
+  if (/fornecedoras_loja_id_nome_key/i.test(msg)) return "Você já tem uma empresa com esse nome.";
+  if (/de outra loja/i.test(msg)) return "Essa sacola ou empresa não é da sua loja.";
   if (/Caderninho: informe o nome/i.test(msg)) return "No caderninho, informe o nome de quem vai pagar.";
   if (/WhatsApp da cliente inválido/i.test(msg)) return "WhatsApp da cliente inválido: use DDD + número, ex.: (42) 99999-0000.";
   return "Não deu certo agora. Tente de novo.";
@@ -66,7 +69,7 @@ export async function buscarPorCodigo(codigo: string) {
   if (!limpo) return null;
   const { data } = await supabase
     .from("variantes")
-    .select("id, tamanho, estoque, codigo_barras, produtos!inner(id, nome, preco, categoria, fotos)")
+    .select("id, tamanho, estoque, codigo_barras, produtos!inner(id, nome, preco, categoria, fotos, sacola_id, sacolas(percentual_lucro, devolver_ate, status))")
     .eq("loja_id", loja.id)
     .eq("codigo_barras", limpo)
     .maybeSingle();
@@ -81,6 +84,8 @@ export async function buscarPorCodigo(codigo: string) {
     preco: Number(p.preco),
     categoria: p.categoria as string,
     foto: (p.fotos as string[])[0] ?? null,
+    percentual: Number((Array.isArray(p.sacolas) ? p.sacolas[0] : p.sacolas)?.percentual_lucro ?? 0),
+    devolverAte: ((s) => (s?.status === "aberta" ? (s.devolver_ate as string) : null))(Array.isArray(p.sacolas) ? p.sacolas[0] : p.sacolas),
   };
 }
 
@@ -198,6 +203,7 @@ const produtoSchema = z.object({
   cor: z.string().trim().max(40).optional(),
   descricao: z.string().trim().max(600).optional(),
   visivel: z.boolean(),
+  sacola_id: z.string().optional(),
   fotos: z.array(z.url()).max(6),
   variantes: z.array(varianteSchema).min(1, "Adicione pelo menos um tamanho."),
 });
@@ -219,6 +225,7 @@ export async function salvarProduto(_: Estado, form: FormData): Promise<Estado> 
     cor: form.get("cor") || undefined,
     descricao: form.get("descricao") || undefined,
     visivel: form.get("visivel") === "on",
+    sacola_id: String(form.get("sacola_id") ?? "") || undefined,
     fotos: form.getAll("fotos").map(String).filter(Boolean),
     variantes: variantesBrutas,
   });
@@ -238,15 +245,23 @@ export async function salvarProduto(_: Estado, form: FormData): Promise<Estado> 
     fotos: d.fotos,
   };
 
+  // Sacola da peça: a escolhida (se for uma sacola aberta da loja) ou a primeira aberta
+  const abertas = await getSacolasAbertas(loja.id);
+  const sacolaEscolhida = abertas.find((s) => s.id === d.sacola_id)?.id;
+
   let produtoId = d.id;
   if (produtoId) {
-    const { error } = await supabase.from("produtos").update(dadosProduto).eq("id", produtoId).eq("loja_id", loja.id);
+    const { error } = await supabase
+      .from("produtos")
+      .update({ ...dadosProduto, ...(sacolaEscolhida ? { sacola_id: sacolaEscolhida } : {}) })
+      .eq("id", produtoId)
+      .eq("loja_id", loja.id);
     if (error) return { erro: erroAmigavel(error.message) };
   } else {
-    const sacola = await getSacolaAberta(loja.id);
+    if (abertas.length > 1 && !sacolaEscolhida) return { erro: "Escolha de qual sacola é esta peça." };
     const { data, error } = await supabase
       .from("produtos")
-      .insert({ ...dadosProduto, loja_id: loja.id, sacola_id: sacola?.id ?? null })
+      .insert({ ...dadosProduto, loja_id: loja.id, sacola_id: sacolaEscolhida ?? abertas[0]?.id ?? null })
       .select("id")
       .single();
     if (error) return { erro: erroAmigavel(error.message) };
@@ -275,7 +290,8 @@ export async function salvarProduto(_: Estado, form: FormData): Promise<Estado> 
 
   revalidatePath("/painel", "layout");
   revalidatePath(`/${loja.slug}`, "layout");
-  redirect("/painel/sacola?salvo=1");
+  const { data: salvo } = await supabase.from("produtos").select("sacola_id").eq("id", produtoId).maybeSingle();
+  redirect(`/painel/sacola?salvo=1${salvo?.sacola_id ? `&sacola=${salvo.sacola_id}` : ""}`);
 }
 
 export async function excluirProduto(produtoId: string) {
@@ -315,8 +331,10 @@ export async function fecharSacola(sacolaId: string) {
 }
 
 const novaSacolaSchema = z.object({
-  nome: z.string().trim().min(2),
-  recebida_em: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  fornecedora_id: z.string().optional().default(""),
+  nova_empresa: z.string().trim().max(60).optional().default(""),
+  nome: z.string().trim().min(2, "Dê um nome para a sacola."),
+  recebida_em: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data inválida."),
   dias: z.coerce.number().int().min(7).max(180),
   percentual_lucro: z.coerce.number().min(0).max(100),
 });
@@ -324,52 +342,141 @@ const novaSacolaSchema = z.object({
 export async function abrirSacola(_: Estado, form: FormData): Promise<Estado> {
   const { supabase, loja } = await getMinhaLoja();
   const parsed = novaSacolaSchema.safeParse(Object.fromEntries(form));
-  if (!parsed.success) return { erro: "Confira os dados da sacola." };
+  if (!parsed.success) return { erro: parsed.error.issues[0]?.message ?? "Confira os dados da sacola." };
   const d = parsed.data;
+
+  // Empresa: uma das que já existem ou uma nova
+  let fornecedoraId = d.fornecedora_id;
+  if (!fornecedoraId || fornecedoraId === "nova") {
+    if (d.nova_empresa.length < 2) return { erro: "Diga o nome da empresa dessa sacola." };
+    const { data, error } = await supabase
+      .from("fornecedoras")
+      .insert({ loja_id: loja.id, nome: d.nova_empresa, percentual_lucro: d.percentual_lucro, prazo_dias: d.dias })
+      .select("id")
+      .single();
+    if (error) return { erro: erroAmigavel(error.message) };
+    fornecedoraId = data.id as string;
+  }
+
   const devolver = new Date(d.recebida_em + "T12:00:00");
   devolver.setDate(devolver.getDate() + d.dias);
-  const { error } = await supabase.from("sacolas").insert({
-    loja_id: loja.id,
-    nome: d.nome,
-    recebida_em: d.recebida_em,
-    devolver_ate: devolver.toISOString().slice(0, 10),
-    percentual_lucro: d.percentual_lucro,
-  });
+  const { data: nova, error } = await supabase
+    .from("sacolas")
+    .insert({
+      loja_id: loja.id,
+      fornecedora_id: fornecedoraId,
+      nome: d.nome,
+      recebida_em: d.recebida_em,
+      devolver_ate: devolver.toISOString().slice(0, 10),
+      percentual_lucro: d.percentual_lucro,
+    })
+    .select("id")
+    .single();
   if (error) return { erro: erroAmigavel(error.message) };
   revalidatePath("/painel", "layout");
-  redirect("/painel/sacola");
+  redirect(`/painel/sacola?sacola=${nova.id}`);
+}
+
+const empresaSchema = z.object({
+  id: z.string().min(1),
+  nome: z.string().trim().min(2, "Nome muito curto.").max(60),
+  percentual_lucro: z.coerce.number().min(0).max(100),
+  prazo_dias: z.coerce.number().int().min(7).max(180),
+});
+
+export async function salvarEmpresa(_: Estado, form: FormData): Promise<Estado> {
+  const { supabase, loja } = await getMinhaLoja();
+  const parsed = empresaSchema.safeParse(Object.fromEntries(form));
+  if (!parsed.success) return { erro: parsed.error.issues[0]?.message ?? "Confira os dados." };
+  const { id, ...dados } = parsed.data;
+  const { error } = await supabase.from("fornecedoras").update(dados).eq("id", id).eq("loja_id", loja.id);
+  if (error) return { erro: erroAmigavel(error.message) };
+  revalidatePath("/painel", "layout");
+  return { ok: "Empresa salva." };
 }
 
 // ───────────────────────── loja (white label)
 
+const textoOpcional = (max: number) => z.string().trim().max(max).optional().default("");
+const usuarioRede = z
+  .string()
+  .trim()
+  .transform((v) => v.replace(/^https?:\/\/(www\.)?(instagram|tiktok)\.com\/@?/i, "").replace(/^@/, "").replace(/\/.*$/, ""))
+  .refine((v) => v === "" || /^[A-Za-z0-9._]{1,30}$/.test(v), "Usuário de rede social inválido.")
+  .optional()
+  .default("");
+
 const lojaSchema = z.object({
-  nome: z.string().trim().min(2).max(60),
+  nome: z.string().trim().min(2, "Dê um nome para a loja.").max(60),
   cidade: z.string().trim().max(60).optional(),
   whatsapp: z.string().transform((v) => v.replace(/\D/g, "")).refine((v) => v.length >= 10 && v.length <= 13, "WhatsApp inválido."),
   tema: z.enum(["rosa", "lilas", "pessego", "salvia"]),
+  cor_personalizada: z.union([z.string().regex(/^#[0-9a-fA-F]{6}$/), z.literal("")]).optional().default(""),
   fonte: z.enum(["elegante", "romantica", "moderna"]),
   formato: z.enum(["arco", "suave", "reto"]),
   logo_url: z.union([z.url(), z.literal("")]).optional(),
   capa_url: z.union([z.url(), z.literal("")]).optional(),
+  aviso_topo: textoOpcional(140),
+  destaque_etiqueta: textoOpcional(40),
+  destaque_titulo: textoOpcional(90),
+  destaque_texto: textoOpcional(240),
+  destaque_botao: textoOpcional(30),
+  novidades_titulo: textoOpcional(60),
+  sobre_titulo: textoOpcional(60),
+  sobre_texto: textoOpcional(1200),
+  contato_texto: textoOpcional(160),
+  instagram: usuarioRede,
+  tiktok: usuarioRede,
 });
+
+const secoesSchema = z
+  .array(z.object({ id: z.enum(["destaque", "vantagens", "novidades", "sobre", "contato"]), visivel: z.boolean() }))
+  .max(10);
+const vantagensSchema = z
+  .array(z.object({ titulo: z.string().trim().max(40), texto: z.string().trim().max(80) }))
+  .max(4);
 
 export async function salvarLoja(_: Estado, form: FormData): Promise<Estado> {
   const { supabase, loja } = await getMinhaLoja();
   const parsed = lojaSchema.safeParse(Object.fromEntries(form));
   if (!parsed.success) return { erro: parsed.error.issues[0]?.message ?? "Confira os dados." };
+  let secoes: z.infer<typeof secoesSchema>;
+  let vantagens: z.infer<typeof vantagensSchema>;
+  try {
+    secoes = secoesSchema.parse(JSON.parse(String(form.get("secoes") ?? "[]")));
+    vantagens = vantagensSchema.parse(JSON.parse(String(form.get("vantagens") ?? "[]"))).filter((v) => v.titulo);
+  } catch {
+    return { erro: "Confira as seções e as vantagens." };
+  }
   const d = parsed.data;
   const whatsapp = d.whatsapp.startsWith("55") && d.whatsapp.length >= 12 ? d.whatsapp : `55${d.whatsapp}`;
+  const ouNulo = (v: string | undefined) => (v && v.trim() ? v.trim() : null);
   const { error } = await supabase
     .from("lojas")
     .update({
       nome: d.nome,
-      cidade: d.cidade || null,
+      cidade: ouNulo(d.cidade),
       whatsapp,
       tema: d.tema,
+      cor_personalizada: ouNulo(d.cor_personalizada),
       fonte: d.fonte,
       formato: d.formato,
-      logo_url: d.logo_url || null,
-      capa_url: d.capa_url || null,
+      logo_url: ouNulo(d.logo_url),
+      capa_url: ouNulo(d.capa_url),
+      // aviso do topo vazio = sem faixa (string vazia é diferente de "usar o padrão")
+      aviso_topo: d.aviso_topo,
+      destaque_etiqueta: ouNulo(d.destaque_etiqueta),
+      destaque_titulo: ouNulo(d.destaque_titulo),
+      destaque_texto: ouNulo(d.destaque_texto),
+      destaque_botao: ouNulo(d.destaque_botao),
+      novidades_titulo: ouNulo(d.novidades_titulo),
+      sobre_titulo: ouNulo(d.sobre_titulo),
+      sobre_texto: ouNulo(d.sobre_texto),
+      contato_texto: ouNulo(d.contato_texto),
+      instagram: ouNulo(d.instagram),
+      tiktok: ouNulo(d.tiktok),
+      secoes,
+      vantagens,
     })
     .eq("id", loja.id);
   if (error) return { erro: erroAmigavel(error.message) };

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Loja } from "@/lib/tipos";
 import { fonteDaLoja } from "@/lib/temas";
+import { RedesSociais } from "@/components/vitrine/secoes";
 
 export function CabecalhoLoja({ loja, children }: { loja: Loja; children?: React.ReactNode }) {
   const fonte = fonteDaLoja(loja.fonte);
@@ -28,7 +29,10 @@ export function CabecalhoLoja({ loja, children }: { loja: Loja; children?: React
 export function RodapeLoja({ loja }: { loja: Loja }) {
   return (
     <footer className="mx-auto mt-16 flex max-w-[1240px] flex-wrap justify-between gap-4 border-t border-petal px-6 pt-8 pb-10 text-sm text-muted">
-      <span>{loja.nome}{loja.cidade ? ` · ${loja.cidade}` : ""}</span>
+      <span className="flex flex-col gap-2">
+        <span>{loja.nome}{loja.cidade ? ` · ${loja.cidade}` : ""}</span>
+        <RedesSociais loja={loja} />
+      </span>
       <span>
         Loja criada com <Link href="/" className="font-elegante text-base text-deep italic">Sacolinha</Link>
       </span>

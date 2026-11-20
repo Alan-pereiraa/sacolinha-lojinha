@@ -10,7 +10,7 @@ export default async function PainelLayout({ children }: LayoutProps<"/painel">)
   const { loja } = await getMinhaLoja();
 
   return (
-    <div style={estiloDoTema(loja.tema)} className="flex min-h-screen bg-blush text-ink">
+    <div style={estiloDoTema(loja.tema, loja.cor_personalizada)} className="flex min-h-screen bg-blush text-ink">
       <aside className="sticky top-0 hidden h-screen w-[264px] shrink-0 flex-col gap-7 border-r border-petal bg-white px-5 py-7 lg:flex">
         <div className="flex items-center gap-3 px-2">
           <MarcaLoja nome={loja.nome} logo={loja.logo_url} />

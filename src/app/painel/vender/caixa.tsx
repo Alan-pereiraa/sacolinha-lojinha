@@ -18,6 +18,8 @@ type Item = {
   categoria: string;
   foto: string | null;
   quantidade: number;
+  percentual: number;
+  devolverAte: string | null;
 };
 
 type Forma = "pix" | "cartao" | "dinheiro" | "caderninho";
@@ -53,12 +55,10 @@ function previsaoParcelas(n: number, modo: "data" | "sacola", primeira: string, 
 const curta = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
 
 export function CaixaVenda({
-  percentualLucro,
-  sacola,
+  sacolas,
   hoje,
 }: {
-  percentualLucro: number;
-  sacola: { nome: string; devolverAte: string } | null;
+  sacolas: { nome: string; devolverAte: string }[];
   hoje: string;
 }) {
   const [itens, setItens] = useState<Item[]>([]);
@@ -116,6 +116,13 @@ export function CaixaVenda({
   }, [avisar]);
 
   const total = itens.reduce((a, i) => a + i.preco * i.quantidade, 0);
+  const lucro = itens.reduce((a, i) => a + (i.preco * i.quantidade * i.percentual) / 100, 0);
+  // "até o fechamento da sacola": o prazo mais curto entre as sacolas das peças bipadas
+  const prazosDasPecas = itens.map((i) => i.devolverAte).filter((d): d is string => Boolean(d)).sort();
+  const sacola =
+    prazosDasPecas.length > 0
+      ? { nome: itens.length > 1 && new Set(prazosDasPecas).size > 1 ? "Sacola que fecha primeiro" : "Sacola das peças", devolverAte: prazosDasPecas[0] }
+      : sacolas[0] ?? null;
   const qtdPecas = itens.reduce((a, i) => a + i.quantidade, 0);
 
   function concluir() {
@@ -365,7 +372,7 @@ export function CaixaVenda({
         <div className="flex items-baseline justify-between"><span>Total</span><span className="text-4xl font-bold">{brl(total)}</span></div>
         <div className="flex justify-between text-sm opacity-90">
           <span>Seu lucro nesta venda</span>
-          <span className="font-bold">{brl((total * percentualLucro) / 100)}</span>
+          <span className="font-bold">{brl(lucro)}</span>
         </div>
         <button onClick={concluir} disabled={itens.length === 0 || finalizando} className="btn h-14 bg-white text-base text-deep">
           {finalizando ? "Registrando…" : "Finalizar venda"}

@@ -16,6 +16,9 @@ export const DEMO_USER = {
 
 export const LOJA_ID = id(2);
 export const SACOLA_ID = id(3);
+export const SACOLA2_ID = id(4);
+const EMPRESA1 = id(5);
+const EMPRESA2 = id(6);
 
 type Linha = Record<string, unknown>;
 
@@ -40,7 +43,7 @@ export function dadosIniciais(): Record<string, Linha[]> {
   produtos.forEach(([nome, categoria, preco, descricao, tams], i) => {
     const pid = id(10 + i);
     linhasProdutos.push({
-      id: pid, loja_id: LOJA_ID, sacola_id: SACOLA_ID, nome, categoria, preco, descricao,
+      id: pid, loja_id: LOJA_ID, sacola_id: i >= 6 ? SACOLA2_ID : SACOLA_ID, nome, categoria, preco, descricao,
       cor: "Rosé", fotos: [], visivel: true, novidade_enviada_em: i < 3 ? diasAtras(5) : null,
       criado_em: diasAtras(14 - i),
     });
@@ -60,7 +63,10 @@ export function dadosIniciais(): Record<string, Linha[]> {
       parcelas: Math.max(1, parcelasVenc.length), cliente_nome: cliente, cliente_whatsapp: whats, cobranca_automatica: Boolean(whats),
       pago: forma !== "fiado", criado_em: diasAtras(dias),
     },
-    itens: itens.map(([produto_nome, tamanho], j) => ({ id: id(400 + k * 10 + j), venda_id: id(300 + k), variante_id: null, produto_nome, tamanho, preco: total / itens.length, quantidade: 1 })),
+    itens: itens.map(([produto_nome, tamanho], j) => ({
+      id: id(400 + k * 10 + j), venda_id: id(300 + k), variante_id: null, produto_nome, tamanho, preco: total / itens.length, quantidade: 1,
+      sacola_id: SACOLA_ID, lucro: Math.round((total / itens.length) * 30) / 100,
+    })),
     parcelas: parcelasVenc.map((venc, j) => ({
       id: id(600 + k * 10 + j), loja_id: LOJA_ID, venda_id: id(300 + k), numero: j + 1, total_parcelas: parcelasVenc.length,
       valor: Math.round((total / parcelasVenc.length) * 100) / 100, vence_em: hojeISO(venc),
@@ -85,8 +91,21 @@ export function dadosIniciais(): Record<string, Linha[]> {
       wa_instancia: null, wa_grupo_id: null, wa_grupo_nome: null, criado_em: diasAtras(20),
       cobranca_ativa: true, cobranca_dias_antes: 1, cobranca_repetir_dias: 3, cobranca_max_atraso: 3,
       cobranca_mensagem: null, chave_pix: "boutiquerose@email.com",
+      cor_personalizada: null, aviso_topo: null, destaque_etiqueta: null, destaque_titulo: null, destaque_texto: null,
+      destaque_botao: null, novidades_titulo: null, sobre_titulo: null,
+      sobre_texto: "Revendo lingerie há 3 anos aqui em Guarapuava. Atendo pelo WhatsApp, separo as peças e entrego em casa.",
+      contato_texto: null, vantagens: null, secoes: null, instagram: "boutiquerose", tiktok: null,
     }],
+    fornecedoras: [
+      { id: EMPRESA1, loja_id: LOJA_ID, nome: "Lingerie Bella", percentual_lucro: 30, prazo_dias: 60, criado_em: diasAtras(20) },
+      { id: EMPRESA2, loja_id: LOJA_ID, nome: "Flor de Renda", percentual_lucro: 35, prazo_dias: 45, criado_em: diasAtras(8) },
+    ],
     sacolas: [{
+      id: SACOLA2_ID, loja_id: LOJA_ID, fornecedora_id: EMPRESA2, nome: "Sacola de Novembro", recebida_em: diasAtras(8).slice(0, 10),
+      devolver_ate: new Date(agora.getTime() + 37 * 86_400_000).toISOString().slice(0, 10),
+      percentual_lucro: 35, status: "aberta", fechada_em: null, criado_em: diasAtras(8),
+    }, {
+      fornecedora_id: EMPRESA1,
       id: SACOLA_ID, loja_id: LOJA_ID, nome: "Sacola de Novembro", recebida_em: diasAtras(14).slice(0, 10),
       devolver_ate: new Date(agora.getTime() + 46 * 86_400_000).toISOString().slice(0, 10),
       percentual_lucro: 30, status: "aberta", fechada_em: null, criado_em: diasAtras(14),

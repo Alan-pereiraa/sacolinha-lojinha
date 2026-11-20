@@ -32,7 +32,7 @@ export default async function ProdutoPage({ params }: PageProps<"/[slug]/p/[id]"
   const tamanhos = ordenarTamanhos(produto.variantes ?? []).map((v) => ({ tamanho: v.tamanho, disponivel: v.estoque > 0 }));
 
   return (
-    <div style={estiloDoTema(loja.tema)} className="min-h-screen bg-blush text-ink">
+    <div style={estiloDoTema(loja.tema, loja.cor_personalizada)} className="min-h-screen bg-blush text-ink">
       <CabecalhoLoja loja={loja}>
         <Link href={`/${loja.slug}`} className="flex items-center gap-2 py-2.5 font-semibold text-deep">
           <IconeVoltar tamanho={18} /> Voltar para a vitrine

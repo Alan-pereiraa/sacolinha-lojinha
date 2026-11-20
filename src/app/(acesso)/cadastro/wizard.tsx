@@ -173,7 +173,11 @@ export function WizardCadastro() {
       {/* Passo 3 */}
       <fieldset ref={(el) => { etapas.current[2] = el; }} className={passo === 2 ? "flex flex-col gap-4" : "hidden"}>
         <legend className="titulo mb-2 text-4xl">E a sua <span className="italic text-deep">sacola</span></legend>
-        <p className="text-muted">Com isso a gente calcula seu lucro e te avisa antes do prazo de devolução.</p>
+        <p className="text-muted">Com isso a gente calcula seu lucro e te avisa antes do prazo de devolução. Revende para mais de uma empresa? Depois você abre uma sacola para cada uma.</p>
+        <div className="flex flex-col gap-2">
+          <label htmlFor="empresa_nome" className="rotulo">Empresa que te passou a sacola</label>
+          <input id="empresa_nome" name="empresa_nome" required minLength={2} maxLength={60} className="campo" placeholder="Ex.: Lingerie da Ana" />
+        </div>
         <div className="flex flex-wrap gap-4">
           <div className="flex flex-[1_1_220px] flex-col gap-2">
             <label htmlFor="sacola_recebida_em" className="rotulo">Recebi a sacola em</label>

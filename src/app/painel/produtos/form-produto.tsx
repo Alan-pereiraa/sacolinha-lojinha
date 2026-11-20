@@ -3,14 +3,29 @@
 import Link from "next/link";
 import { useActionState, useState } from "react";
 import { salvarProduto } from "../actions";
-import { CATEGORIAS, type Produto } from "@/lib/tipos";
+import { CATEGORIAS, nomeDaSacola, type Produto, type SacolaComEmpresa } from "@/lib/tipos";
 import { enviarFoto } from "@/lib/upload";
 import { LeitorCodigo } from "@/components/leitor-codigo";
 import { IconeCodigo, IconeMais, IconeUpload, IconeX } from "@/components/icones";
 
 type LinhaVariante = { chave: string; id?: string; tamanho: string; codigo_barras: string; estoque: number; vendidos: number };
 
-export function FormProduto({ lojaId, produto, codigoInicial }: { lojaId: string; produto?: Produto; codigoInicial?: string }) {
+export function FormProduto({
+  lojaId,
+  produto,
+  codigoInicial,
+  sacolas = [],
+  sacolaInicial,
+}: {
+  lojaId: string;
+  produto?: Produto;
+  codigoInicial?: string;
+  sacolas?: SacolaComEmpresa[];
+  sacolaInicial?: string;
+}) {
+  // Sacola só se escolhe entre as abertas; peça de sacola fechada fica onde está
+  const sacolaAtual = produto ? produto.sacola_id : sacolaInicial;
+  const podeEscolherSacola = sacolas.length > 1 && (!produto || sacolas.some((s) => s.id === produto.sacola_id));
   const [estado, acao, salvando] = useActionState(salvarProduto, undefined);
   const [fotos, setFotos] = useState<string[]>(produto?.fotos ?? []);
   const [enviando, setEnviando] = useState(false);
@@ -51,6 +66,24 @@ export function FormProduto({ lojaId, produto, codigoInicial }: { lojaId: string
         {estado?.erro && <p role="alert" className="rounded-2xl bg-soft px-4 py-3 text-sm font-semibold text-deep">{estado.erro}</p>}
 
         <section className="cartao flex flex-col gap-4">
+          {podeEscolherSacola && (
+            <div className="flex flex-col gap-2">
+              <label htmlFor="sacola_id" className="rotulo">Sacola (empresa)</label>
+              <select
+                id="sacola_id"
+                name="sacola_id"
+                required
+                defaultValue={sacolas.some((s) => s.id === sacolaAtual) ? (sacolaAtual ?? "") : ""}
+                className="campo"
+              >
+                <option value="" disabled>Escolha a sacola</option>
+                {sacolas.map((s) => (
+                  <option key={s.id} value={s.id}>{nomeDaSacola(s)} · {Number(s.percentual_lucro)}% de lucro</option>
+                ))}
+              </select>
+            </div>
+          )}
+          {!podeEscolherSacola && sacolas.length === 1 && !produto && <input type="hidden" name="sacola_id" value={sacolas[0].id} />}
           <div className="flex flex-col gap-2">
             <label htmlFor="nome" className="rotulo">Nome da peça</label>
             <input id="nome" name="nome" required minLength={2} defaultValue={produto?.nome} className="campo" placeholder="Ex.: Conjunto Renda Rosé" />

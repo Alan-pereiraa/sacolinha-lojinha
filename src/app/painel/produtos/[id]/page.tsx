@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getMinhaLoja } from "@/lib/loja";
+import { getMinhaLoja, getSacolasAbertas } from "@/lib/loja";
 import type { Produto } from "@/lib/tipos";
 import { excluirProduto } from "../../actions";
 import { FormProduto } from "../form-produto";
@@ -12,13 +12,14 @@ export default async function EditarProdutoPage({ params }: PageProps<"/painel/p
   const { supabase, loja } = await getMinhaLoja();
   const { data } = await supabase.from("produtos").select("*, variantes(*)").eq("id", id).eq("loja_id", loja.id).maybeSingle();
   if (!data) notFound();
+  const sacolas = await getSacolasAbertas(loja.id);
   const produto = data as Produto;
   produto.variantes?.sort((a, b) => a.tamanho.localeCompare(b.tamanho, "pt-BR", { numeric: true }));
 
   return (
     <>
       <h1 className="titulo text-4xl">Editar <span className="italic text-deep">{produto.nome}</span></h1>
-      <FormProduto lojaId={loja.id} produto={produto} />
+      <FormProduto lojaId={loja.id} produto={produto} sacolas={sacolas} />
       <details className="cartao">
         <summary className="cursor-pointer font-bold text-deep">Excluir peça</summary>
         <form action={excluirProduto.bind(null, produto.id)} className="mt-3 flex flex-col items-start gap-3">

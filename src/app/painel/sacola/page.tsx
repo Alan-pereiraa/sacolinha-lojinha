@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { getMinhaLoja, getSacolaAberta } from "@/lib/loja";
+import { getEmpresas, getMinhaLoja, getSacolasAbertas } from "@/lib/loja";
 import { brl, dataCurta, diasAte } from "@/lib/formatar";
 import { nomeCategoria, type Produto } from "@/lib/tipos";
 import { FotoPeca } from "@/components/peca";
 import { IconeMais } from "@/components/icones";
 import { fecharSacola } from "../actions";
 import { FormNovaSacola } from "./form-nova-sacola";
+import { Empresas } from "./empresas";
 
 export const metadata: Metadata = { title: "Sacola" };
 
@@ -21,9 +22,14 @@ export default async function SacolaPage({ searchParams }: PageProps<"/painel/sa
   const aba = (ABAS.find((a) => a.id === sp.aba)?.id ?? "disponiveis") as (typeof ABAS)[number]["id"];
   const busca = typeof sp.q === "string" ? sp.q.trim() : "";
   const { supabase, loja } = await getMinhaLoja();
-  const sacola = await getSacolaAberta(loja.id);
+  const [sacolas, empresas] = await Promise.all([getSacolasAbertas(loja.id), getEmpresas(loja.id)]);
+  const sacola = sacolas.find((s) => s.id === sp.sacola) ?? sacolas[0];
+  const ocupadas = new Set(sacolas.map((s) => s.fornecedora_id));
+  const livres = empresas.filter((e) => !ocupadas.has(e.id));
+  const qs = (extra: Record<string, string>) =>
+    "?" + new URLSearchParams({ ...(sacola ? { sacola: sacola.id } : {}), ...extra }).toString();
 
-  if (!sacola) {
+  if (!sacola || sp.nova) {
     const { data: ultimas } = await supabase
       .from("sacolas")
       .select("id, nome, fechada_em")
@@ -34,7 +40,14 @@ export default async function SacolaPage({ searchParams }: PageProps<"/painel/sa
     return (
       <>
         <h1 className="titulo text-4xl">Abrir uma <span className="italic text-deep">sacola nova</span></h1>
-        <FormNovaSacola />
+        {sacolas.length > 0 && (
+          <p className="text-sm text-muted">
+            Já abertas: {sacolas.map((s) => s.fornecedoras?.nome ?? s.nome).join(", ")}. Cada empresa tem uma sacola aberta por vez.{" "}
+            <Link href="/painel/sacola" className="font-bold text-deep">Voltar</Link>
+          </p>
+        )}
+        <FormNovaSacola empresas={livres} />
+        <Empresas empresas={empresas} />
         {ultimas && ultimas.length > 0 && (
           <section className="cartao flex flex-col gap-2">
             <h2 className="font-bold">Sacolas anteriores</h2>
@@ -76,15 +89,33 @@ export default async function SacolaPage({ searchParams }: PageProps<"/painel/sa
 
   return (
     <>
+      <nav aria-label="Sacolas abertas" className="flex flex-wrap gap-2">
+        {sacolas.map((s) => (
+          <Link
+            key={s.id}
+            href={`/painel/sacola?sacola=${s.id}`}
+            aria-current={s.id === sacola.id ? "page" : undefined}
+            className={`flex flex-col rounded-2xl px-4 py-2.5 text-sm ${s.id === sacola.id ? "bg-deep text-white" : "bg-white"}`}
+          >
+            <span className="font-bold">{s.fornecedoras?.nome ?? "Sacola"}</span>
+            <span className={s.id === sacola.id ? "opacity-85" : "text-muted"}>{s.nome}</span>
+          </Link>
+        ))}
+        <Link href="/painel/sacola?nova=1" className="flex items-center gap-1.5 rounded-2xl border-[1.5px] border-dashed border-deep px-4 py-2.5 text-sm font-bold text-deep">
+          <IconeMais tamanho={16} />Sacola de outra empresa
+        </Link>
+      </nav>
+
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
+          {sacola.fornecedoras?.nome && <p className="text-xs font-bold tracking-[0.14em] text-deep uppercase">{sacola.fornecedoras.nome}</p>}
           <h1 className="titulo text-4xl">{sacola.nome}</h1>
           <p className="text-sm text-muted">
             Recebida {dataCurta(sacola.recebida_em)} · devolver até {dataCurta(sacola.devolver_ate)} ·{" "}
             {dias >= 0 ? `faltam ${dias} dias` : `atrasada ${-dias} dias`}
           </p>
         </div>
-        <Link href="/painel/produtos/novo" className="btn-primario"><IconeMais tamanho={18} />Cadastrar peça</Link>
+        <Link href={`/painel/produtos/novo?sacola=${sacola.id}`} className="btn-primario"><IconeMais tamanho={18} />Cadastrar peça</Link>
       </header>
 
       <section className="grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-4">
@@ -92,7 +123,7 @@ export default async function SacolaPage({ searchParams }: PageProps<"/painel/sa
         <Numero rotulo="Vendidas" valor={String(vendidas)} destaque />
         <Numero rotulo="Para devolver" valor={String(devolver)} />
         <div className="flex flex-col gap-1 rounded-3xl bg-soft p-5">
-          <span className="text-sm text-muted">A pagar à revendedora</span>
+          <span className="text-sm text-muted">A pagar para {sacola.fornecedoras?.nome ?? "a empresa"}</span>
           <span className="text-2xl font-bold text-deep">{brl(aPagar)}</span>
         </div>
       </section>
@@ -105,7 +136,7 @@ export default async function SacolaPage({ searchParams }: PageProps<"/painel/sa
             {ABAS.map((a) => (
               <Link
                 key={a.id}
-                href={`/painel/sacola?aba=${a.id}${busca ? `&q=${encodeURIComponent(busca)}` : ""}`}
+                href={`/painel/sacola${qs({ aba: a.id, ...(busca ? { q: busca } : {}) })}`}
                 aria-current={a.id === aba ? "page" : undefined}
                 className={`rounded-full px-4 py-2.5 text-sm font-bold ${a.id === aba ? "bg-deep text-white" : "text-ink"}`}
               >
@@ -115,6 +146,7 @@ export default async function SacolaPage({ searchParams }: PageProps<"/painel/sa
           </nav>
           <form className="flex">
             <input type="hidden" name="aba" value={aba} />
+            <input type="hidden" name="sacola" value={sacola.id} />
             <label htmlFor="q" className="sr-only">Buscar peça</label>
             <input id="q" name="q" defaultValue={busca} placeholder="Buscar por nome" className="campo h-11 w-56 rounded-full" />
           </form>
@@ -123,7 +155,7 @@ export default async function SacolaPage({ searchParams }: PageProps<"/painel/sa
         {filtrados.length === 0 ? (
           <p className="rounded-[20px] border-[1.5px] border-dashed border-petal p-7 text-center text-muted">
             {produtos.length === 0 ? (
-              <>Nenhuma peça cadastrada ainda. <Link href="/painel/produtos/novo" className="font-bold text-deep">Cadastrar a primeira</Link></>
+              <>Nenhuma peça cadastrada ainda. <Link href={`/painel/produtos/novo?sacola=${sacola.id}`} className="font-bold text-deep">Cadastrar a primeira</Link></>
             ) : (
               "Nenhuma peça neste filtro."
             )}
@@ -157,12 +189,14 @@ export default async function SacolaPage({ searchParams }: PageProps<"/painel/sa
         )}
       </section>
 
+      <Empresas empresas={empresas} />
+
       <details className="cartao">
         <summary className="cursor-pointer font-bold">Fechar sacola e gerar acerto</summary>
         <div className="mt-4 flex flex-col gap-3">
           <p className="text-sm text-muted">
-            As {devolver} peças restantes saem da vitrine e vão para a lista de devolução. Você paga {brl(aPagar)} à revendedora.
-            Depois disso dá para abrir a próxima sacola.
+            As {devolver} peças restantes saem da vitrine e vão para a lista de devolução. Você paga {brl(aPagar)} para {sacola.fornecedoras?.nome ?? "a empresa"}.
+            As outras sacolas abertas continuam como estão.
           </p>
           <form action={fecharSacola.bind(null, sacola.id)}>
             <button className="btn-primario">Sim, fechar {sacola.nome}</button>

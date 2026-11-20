@@ -11,9 +11,10 @@ export const metadata: Metadata = { title: "Acerto da sacola" };
 export default async function AcertoPage({ params }: PageProps<"/painel/sacola/acerto/[id]">) {
   const { id } = await params;
   const { supabase, loja } = await getMinhaLoja();
-  const { data: s } = await supabase.from("sacolas").select("*").eq("id", id).eq("loja_id", loja.id).maybeSingle();
+  const { data: s } = await supabase.from("sacolas").select("*, fornecedoras(nome)").eq("id", id).eq("loja_id", loja.id).maybeSingle();
   if (!s) notFound();
-  const sacola = s as Sacola;
+  const sacola = s as Sacola & { fornecedoras: { nome: string } | { nome: string }[] | null };
+  const empresa = (Array.isArray(sacola.fornecedoras) ? sacola.fornecedoras[0] : sacola.fornecedoras)?.nome ?? "a empresa";
   const { data } = await supabase.from("produtos").select("*, variantes(*)").eq("sacola_id", id).order("nome");
   const produtos = (data ?? []) as Produto[];
 
@@ -29,20 +30,20 @@ export default async function AcertoPage({ params }: PageProps<"/painel/sacola/a
         <div>
           <h1 className="titulo text-4xl">Acerto · <span className="italic text-deep">{sacola.nome}</span></h1>
           <p className="text-sm text-muted">
-            {loja.nome} · recebida {dataCurta(sacola.recebida_em)}
+            {loja.nome} · {empresa} · recebida {dataCurta(sacola.recebida_em)}
             {sacola.status === "fechada" ? " · fechada" : " · ainda aberta"}
           </p>
         </div>
         <div className="flex gap-2 print:hidden">
           <BotaoImprimir />
-          {sacola.status === "fechada" && <Link href="/painel/sacola" className="btn-primario">Abrir próxima sacola</Link>}
+          {sacola.status === "fechada" && <Link href="/painel/sacola?nova=1" className="btn-primario">Abrir próxima sacola</Link>}
         </div>
       </header>
 
       <section className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-4">
         <div className="cartao"><p className="text-sm text-muted">Total vendido</p><p className="text-2xl font-bold">{brl(totalVendido)}</p></div>
         <div className="cartao"><p className="text-sm text-muted">Seu lucro ({Number(sacola.percentual_lucro)}%)</p><p className="text-2xl font-bold">{brl(lucro)}</p></div>
-        <div className="rounded-[28px] bg-deep p-6 text-white"><p className="text-sm opacity-85">Pagar à revendedora</p><p className="text-2xl font-bold">{brl(totalVendido - lucro)}</p></div>
+        <div className="rounded-[28px] bg-deep p-6 text-white"><p className="text-sm opacity-85">Pagar para {empresa}</p><p className="text-2xl font-bold">{brl(totalVendido - lucro)}</p></div>
       </section>
 
       <Tabela titulo={`Devolver (${devolver.reduce((a, l) => a + l.v.estoque, 0)} peças)`} linhas={devolver.map((l) => [l.p.nome, l.v.tamanho, l.v.codigo_barras ?? "—", String(l.v.estoque)])} cabecalho={["Peça", "Tam.", "Código", "Qtd."]} />

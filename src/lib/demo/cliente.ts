@@ -21,8 +21,14 @@ function anexarRelacoes(tabela: string, linhas: Linha[], select: string) {
   const db = banco();
   return linhas.map((l) => {
     const r: Linha = { ...l };
+    const sacolaDe = (sid: unknown) => db.sacolas.find((s) => s.id === sid) ?? null;
     if (tabela === "produtos" && select.includes("variantes")) r.variantes = db.variantes.filter((v) => v.produto_id === l.id);
-    if (tabela === "variantes" && select.includes("produtos")) r.produtos = db.produtos.find((p) => p.id === l.produto_id) ?? null;
+    if (tabela === "produtos" && select.includes("sacolas(")) r.sacolas = sacolaDe(l.sacola_id);
+    if (tabela === "variantes" && select.includes("produtos")) {
+      const p = db.produtos.find((x) => x.id === l.produto_id);
+      r.produtos = p ? (select.includes("sacolas(") ? { ...p, sacolas: sacolaDe(p.sacola_id) } : p) : null;
+    }
+    if (tabela === "sacolas" && select.includes("fornecedoras")) r.fornecedoras = (db.fornecedoras ?? []).find((f) => f.id === l.fornecedora_id) ?? null;
     if (tabela === "vendas" && select.includes("venda_itens")) r.venda_itens = db.venda_itens.filter((i) => i.venda_id === l.id);
     if (tabela === "parcelas" && select.includes("vendas")) {
       const v = db.vendas.find((x) => x.id === l.venda_id);
@@ -131,8 +137,10 @@ class Consulta implements PromiseLike<{ data: unknown; error: { message: string 
       for (const n of novos) {
         if (this.tabela === "variantes" && n.codigo_barras && tabela.some((v) => v.loja_id === n.loja_id && v.codigo_barras === n.codigo_barras))
           return { data: null, error: { message: "duplicate key value violates unique constraint variantes_loja_id_codigo_barras_key" } };
-        if (this.tabela === "sacolas" && tabela.some((s) => s.loja_id === n.loja_id && s.status === "aberta"))
-          return { data: null, error: { message: "duplicate key sacolas_uma_aberta" } };
+        if (this.tabela === "sacolas" && tabela.some((s) => s.fornecedora_id === n.fornecedora_id && s.status === "aberta"))
+          return { data: null, error: { message: "duplicate key sacolas_uma_aberta_por_empresa" } };
+        if (this.tabela === "fornecedoras" && tabela.some((f) => f.loja_id === n.loja_id && String(f.nome).toLowerCase() === String(n.nome).toLowerCase()))
+          return { data: null, error: { message: "duplicate key fornecedoras_loja_id_nome_key" } };
       }
       tabela.push(...novos);
       return this.resultado(clone(novos));
@@ -197,7 +205,6 @@ type ArgsVenda = {
 
 function finalizarVenda(args: ArgsVenda) {
   const db = banco();
-  const sacola = db.sacolas.find((s) => s.loja_id === LOJA_ID && s.status === "aberta");
   if (args.p_forma === "caderninho" && !args.p_cliente_nome?.trim()) return { data: null, error: { message: "Caderninho: informe o nome de quem vai pagar" } };
   let whats = (args.p_cliente_whatsapp ?? "").replace(/\D/g, "") || null;
   if (whats && whats.length >= 10 && whats.length <= 11) whats = "55" + whats;
@@ -214,16 +221,24 @@ function finalizarVenda(args: ArgsVenda) {
   }
   total = Math.round(total * 100) / 100;
   const vendaId = crypto.randomUUID();
+  // Lucro peça a peça, com o % da sacola (empresa) de cada uma
+  const sacolaDe = (sid: unknown) => db.sacolas.find((s) => s.id === sid);
+  let lucroTotal = 0;
   for (const { v, p, q } of itens) {
     v.estoque = (v.estoque as number) - q;
     v.vendidos = (v.vendidos as number) + q;
-    db.venda_itens.push({ id: crypto.randomUUID(), venda_id: vendaId, variante_id: v.id, produto_nome: p.nome, tamanho: v.tamanho, preco: p.preco, quantidade: q });
+    const lucro = Math.round(Number(p.preco) * q * Number(sacolaDe(p.sacola_id)?.percentual_lucro ?? 0)) / 100;
+    lucroTotal += lucro;
+    db.venda_itens.push({ id: crypto.randomUUID(), venda_id: vendaId, variante_id: v.id, produto_nome: p.nome, tamanho: v.tamanho, preco: p.preco, quantidade: q, sacola_id: p.sacola_id ?? null, lucro });
   }
+  const idsSacolas = [...new Set(itens.map((i) => i.p.sacola_id).filter(Boolean))];
+  const prazos = idsSacolas.map((s) => sacolaDe(s)).filter((s) => s?.status === "aberta").map((s) => String(s!.devolver_ate)).sort();
+  const sacola = prazos.length ? { devolver_ate: prazos[0] } : null;
   const cad = args.p_forma === "caderninho";
   const n = cad ? Math.max(1, Math.min(12, args.p_parcelas)) : 1;
   db.vendas.push({
-    id: vendaId, loja_id: LOJA_ID, sacola_id: sacola?.id ?? null, total,
-    lucro: Math.round(total * Number(sacola?.percentual_lucro ?? 0)) / 100, forma_pagamento: cad ? "fiado" : args.p_forma,
+    id: vendaId, loja_id: LOJA_ID, sacola_id: idsSacolas.length === 1 ? idsSacolas[0] : null, total,
+    lucro: Math.round(lucroTotal * 100) / 100, forma_pagamento: cad ? "fiado" : args.p_forma,
     parcelas: n, cliente_nome: args.p_cliente_nome?.trim() || null, cliente_whatsapp: cad ? whats : null,
     cobranca_automatica: cad && Boolean(whats) && args.p_cobrar_auto, pago: !cad, criado_em: new Date().toISOString(),
   });

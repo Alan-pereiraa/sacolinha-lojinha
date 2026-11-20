@@ -21,7 +21,7 @@ export default function Home() {
               Sua vitrine, suas vendas e sua sacola <span className="italic text-deep">num lugar só</span>
             </h1>
             <p className="max-w-lg text-lg text-muted">
-              Mostre as peças num link bonito, venda bipando a etiqueta e saiba na hora quanto acertar com a revendedora.
+              Mostre as peças num link bonito, venda bipando a etiqueta e saiba na hora quanto acertar com cada empresa que te passa sacola.
             </p>
             <Link href="/cadastro" className="btn-primario h-14 self-start px-8 text-base">Criar minha loja grátis</Link>
           </div>

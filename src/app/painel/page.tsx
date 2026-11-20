@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { getMinhaLoja, getSacolaAberta } from "@/lib/loja";
+import { getMinhaLoja, getSacolasAbertas } from "@/lib/loja";
 import { brl, dataCurta, diasAte, FORMAS_PAGAMENTO, iniciais } from "@/lib/formatar";
 import type { Parcela, Venda } from "@/lib/tipos";
 import { hojeBrasil, statusDaParcela } from "@/lib/cobranca";
@@ -11,22 +11,23 @@ export const metadata: Metadata = { title: "Início" };
 
 export default async function PainelPage() {
   const { supabase, loja, user } = await getMinhaLoja();
-  const sacola = await getSacolaAberta(loja.id);
+  const sacolas = await getSacolasAbertas(loja.id);
+  const idsSacolas = sacolas.map((x) => x.id);
 
   const [{ data: variantes }, { data: vendas }, { data: pendentes }] = await Promise.all([
-    sacola
+    idsSacolas.length
       ? supabase
           .from("variantes")
-          .select("estoque, vendidos, produtos!inner(nome, sacola_id)")
+          .select("estoque, vendidos, produtos!inner(nome, preco, sacola_id)")
           .eq("loja_id", loja.id)
-          .eq("produtos.sacola_id", sacola.id)
+          .in("produtos.sacola_id", idsSacolas)
       : Promise.resolve({ data: [] as never[] }),
     supabase
       .from("vendas")
       .select("id, total, lucro, forma_pagamento, parcelas, cliente_nome, pago, criado_em, venda_itens(produto_nome, tamanho, quantidade)")
       .eq("loja_id", loja.id)
-      .eq("sacola_id", sacola?.id ?? "00000000-0000-0000-0000-000000000000")
-      .order("criado_em", { ascending: false }),
+      .order("criado_em", { ascending: false })
+      .limit(8),
     supabase
       .from("parcelas")
       .select("id, venda_id, numero, total_parcelas, valor, vence_em, pago_em, vendas(cliente_nome)")
@@ -35,20 +36,26 @@ export default async function PainelPage() {
       .order("vence_em", { ascending: true }),
   ]);
 
-  type LinhaVariante = { estoque: number; vendidos: number; produtos: { nome: string } | { nome: string }[] };
-  const vs = (variantes ?? []) as LinhaVariante[];
-  const totalPecas = vs.reduce((a, v) => a + v.estoque + v.vendidos, 0);
-  const vendidas = vs.reduce((a, v) => a + v.vendidos, 0);
-  const pct = totalPecas ? Math.round((vendidas / totalPecas) * 100) : 0;
+  type ProdutoV = { nome: string; preco: number; sacola_id: string };
+  type LinhaVariante = { estoque: number; vendidos: number; produtos: ProdutoV | ProdutoV[] };
+  const vs = ((variantes ?? []) as LinhaVariante[]).map((v) => ({ ...v, p: (Array.isArray(v.produtos) ? v.produtos[0] : v.produtos) as ProdutoV }));
 
+  // Números de cada sacola aberta (uma por empresa)
+  const resumo = sacolas.map((sac) => {
+    const doSac = vs.filter((v) => v.p?.sacola_id === sac.id);
+    const pecas = doSac.reduce((a, v) => a + v.estoque + v.vendidos, 0);
+    const vendidas = doSac.reduce((a, v) => a + v.vendidos, 0);
+    const vendido = doSac.reduce((a, v) => a + v.vendidos * Number(v.p.preco), 0);
+    const lucro = (vendido * Number(sac.percentual_lucro)) / 100;
+    return { sac, pecas, vendidas, vendido, lucro, pct: pecas ? Math.round((vendidas / pecas) * 100) : 0, dias: diasAte(sac.devolver_ate) };
+  });
+  const totalVendido = resumo.reduce((a, r) => a + r.vendido, 0);
+  const lucro = resumo.reduce((a, r) => a + r.lucro, 0);
   const listaVendas = (vendas ?? []) as Venda[];
-  const totalVendido = listaVendas.reduce((a, v) => a + Number(v.total), 0);
-  const lucro = listaVendas.reduce((a, v) => a + Number(v.lucro), 0);
 
   const ranking = new Map<string, number>();
   for (const v of vs) {
-    const nome = Array.isArray(v.produtos) ? v.produtos[0]?.nome : v.produtos?.nome;
-    if (nome && v.vendidos) ranking.set(nome, (ranking.get(nome) ?? 0) + v.vendidos);
+    if (v.p?.nome && v.vendidos) ranking.set(v.p.nome, (ranking.get(v.p.nome) ?? 0) + v.vendidos);
   }
   const maisVendidas = [...ranking.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3);
 
@@ -58,7 +65,6 @@ export default async function PainelPage() {
   const atrasadas = listaPendentes.filter((p) => statusDaParcela(p, hoje) === "atrasada").length;
   const nomeDe = (p: Parcela) => (Array.isArray(p.vendas) ? p.vendas[0] : p.vendas)?.cliente_nome ?? "Sem nome";
   const primeiroNome = String(user.user_metadata?.nome ?? "").split(" ")[0];
-  const dias = sacola ? diasAte(sacola.devolver_ate) : 0;
 
   return (
     <>
@@ -78,44 +84,48 @@ export default async function PainelPage() {
       </header>
 
       <section className="grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-4">
-        <div className="relative flex flex-col gap-4 overflow-hidden rounded-[28px] bg-deep p-6 text-white">
-          <div aria-hidden="true" className="absolute -top-12 -right-12 size-44 rounded-full border-[1.5px] border-white/25" />
-          {sacola ? (
-            <>
-              <div className="relative flex flex-col gap-1">
-                <span className="text-xs font-bold tracking-[0.14em] uppercase opacity-85">Sacola atual</span>
-                <span className="font-elegante text-2xl">{sacola.nome}</span>
-                <span className="text-sm opacity-85">
-                  Devolver até {dataCurta(sacola.devolver_ate)} ·{" "}
-                  {dias >= 0 ? `faltam ${dias} dias` : `atrasada ${-dias} dias`}
-                </span>
-              </div>
-              <div className="flex flex-col gap-2">
-                <div className="flex justify-between text-sm">
-                  <span>{vendidas} de {totalPecas} peças vendidas</span>
-                  <span className="font-bold">{pct}%</span>
-                </div>
-                <div className="h-2.5 rounded-full bg-white/20">
-                  <div className="h-2.5 rounded-full bg-white" style={{ width: `${pct}%` }} />
-                </div>
-              </div>
-            </>
-          ) : (
-            <div className="flex flex-col gap-3">
-              <span className="font-elegante text-2xl">Nenhuma sacola aberta</span>
-              <Link href="/painel/sacola" className="btn self-start bg-white text-deep">Abrir sacola</Link>
+        {resumo.map(({ sac, pecas, vendidas, pct, dias }) => (
+          <Link
+            key={sac.id}
+            href={`/painel/sacola?sacola=${sac.id}`}
+            className="relative flex flex-col gap-4 overflow-hidden rounded-[28px] bg-deep p-6 text-white"
+          >
+            <div aria-hidden="true" className="absolute -top-12 -right-12 size-44 rounded-full border-[1.5px] border-white/25" />
+            <div className="relative flex flex-col gap-1">
+              <span className="text-xs font-bold tracking-[0.14em] uppercase opacity-85">{sac.fornecedoras?.nome ?? "Sacola atual"}</span>
+              <span className="font-elegante text-2xl">{sac.nome}</span>
+              <span className="text-sm opacity-85">
+                Devolver até {dataCurta(sac.devolver_ate)} · {dias >= 0 ? `faltam ${dias} dias` : `atrasada ${-dias} dias`}
+              </span>
             </div>
-          )}
-        </div>
+            <div className="flex flex-col gap-2">
+              <div className="flex justify-between text-sm">
+                <span>{vendidas} de {pecas} peças vendidas</span>
+                <span className="font-bold">{pct}%</span>
+              </div>
+              <div className="h-2.5 rounded-full bg-white/20">
+                <div className="h-2.5 rounded-full bg-white" style={{ width: `${pct}%` }} />
+              </div>
+            </div>
+          </Link>
+        ))}
+        {sacolas.length === 0 && (
+          <div className="flex flex-col gap-3 rounded-[28px] bg-deep p-6 text-white">
+            <span className="font-elegante text-2xl">Nenhuma sacola aberta</span>
+            <Link href="/painel/sacola?nova=1" className="btn self-start bg-white text-deep">Abrir sacola</Link>
+          </div>
+        )}
         <div className="cartao flex flex-col gap-1.5">
-          <span className="text-sm text-muted">Vendido na sacola</span>
+          <span className="text-sm text-muted">Vendido {sacolas.length > 1 ? `nas ${sacolas.length} sacolas` : "na sacola"}</span>
           <span className="text-3xl font-bold">{brl(totalVendido)}</span>
-          <span className="text-[13px] text-muted">{listaVendas.length} vendas</span>
+          <span className="text-[13px] text-muted">{resumo.reduce((a, r) => a + r.vendidas, 0)} peças vendidas</span>
         </div>
         <div className="flex flex-col gap-1.5 rounded-[28px] bg-soft p-6">
-          <span className="text-sm text-muted">Seu lucro ({Number(sacola?.percentual_lucro ?? 0)}%)</span>
+          <span className="text-sm text-muted">Seu lucro</span>
           <span className="text-3xl font-bold text-deep">{brl(lucro)}</span>
-          <span className="text-[13px] text-muted">{brl(totalVendido - lucro)} para a revendedora</span>
+          <span className="text-[13px] text-muted">
+            {brl(totalVendido - lucro)} para {sacolas.length > 1 ? "as empresas" : "a empresa"}
+          </span>
         </div>
       </section>
 

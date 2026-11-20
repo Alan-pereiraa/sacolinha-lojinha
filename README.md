@@ -164,6 +164,19 @@ chave Pix e o texto da mensagem (com `{nome}`, `{valor}`, `{situacao}`…).
 
 No plano Hobby a Vercel roda o agendamento uma vez por dia, em algum momento dentro da hora marcada.
 
+## Várias empresas e vitrine personalizável
+
+- **Empresas**: cada revendedora cadastra as empresas que passam sacola para ela (nome, % de lucro e prazo padrão). Pode haver **uma sacola aberta por empresa** ao mesmo tempo.
+- Cada peça pertence a uma sacola. Na venda, o lucro é calculado **peça a peça** com o % da sacola dela, então uma venda pode misturar empresas. No Caderninho, "até o fechamento da sacola" usa o prazo mais curto entre as sacolas das peças.
+- O acerto é por sacola, com o nome da empresa.
+- **Minha loja**: cor livre (com ajuste automático de contraste), textos da vitrine (`*palavra*` vira itálico na cor da loja), seções ligáveis e reordenáveis (destaque, vantagens, peças, sobre mim, WhatsApp), até 4 vantagens, Instagram e TikTok. Prévia ao vivo ao lado do formulário.
+- Migração: `supabase/migrations/20261120000000_empresas_e_personalizacao.sql`.
+
+> Em produção, rode uma vez no SQL Editor do Supabase (troca o índice antigo de "uma sacola aberta por loja"):
+> ```sql
+> drop index if exists public.sacolas_uma_aberta;
+> ```
+
 ## Deploy
 
 - **Next.js:** Vercel. Importe o repositório e configure as mesmas variáveis do `.env.local`.

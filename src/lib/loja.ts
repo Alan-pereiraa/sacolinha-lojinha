@@ -2,7 +2,7 @@ import "server-only";
 import { cache } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import type { Loja, Sacola } from "@/lib/tipos";
+import type { Fornecedora, Loja, SacolaComEmpresa } from "@/lib/tipos";
 import { CONFIG_OK, MODO_DEMO } from "@/lib/config";
 
 /** Usuária logada + loja dela. Redireciona para /login se não houver sessão. */
@@ -20,13 +20,25 @@ export const getMinhaLoja = cache(async () => {
   return { supabase, user, loja: loja as Loja };
 });
 
-export const getSacolaAberta = cache(async (lojaId: string) => {
+/** Sacolas abertas da loja (uma por empresa), com o nome da empresa; a que vence primeiro vem antes. */
+export const getSacolasAbertas = cache(async (lojaId: string) => {
   const supabase = await createClient();
   const { data } = await supabase
     .from("sacolas")
-    .select("*")
+    .select("*, fornecedoras(nome)")
     .eq("loja_id", lojaId)
     .eq("status", "aberta")
-    .maybeSingle();
-  return (data as Sacola | null) ?? null;
+    .order("devolver_ate", { ascending: true });
+  return ((data ?? []) as SacolaComEmpresa[]).map((s) => ({
+    ...s,
+    fornecedoras: Array.isArray(s.fornecedoras) ? s.fornecedoras[0] ?? null : s.fornecedoras ?? null,
+  }));
 });
+
+/** Empresas (fornecedoras) com quem a revendedora trabalha. */
+export const getEmpresas = cache(async (lojaId: string) => {
+  const supabase = await createClient();
+  const { data } = await supabase.from("fornecedoras").select("*").eq("loja_id", lojaId).order("nome");
+  return (data ?? []) as Fornecedora[];
+});
+
