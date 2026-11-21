@@ -4,15 +4,15 @@ import type { Loja, Secao, SecaoId, Vantagem } from "@/lib/tipos";
 export const SECOES_INFO: Record<SecaoId, { nome: string; descricao: string }> = {
   destaque: { nome: "Destaque", descricao: "Faixa de promoção logo abaixo do perfil" },
   vantagens: { nome: "Vantagens", descricao: "Até 4 motivos para comprar com você" },
-  novidades: { nome: "Produtos", descricao: "Grade de produtos com busca e categorias" },
+  novidades: { nome: "Produtos", descricao: "Sempre logo abaixo do perfil" },
   sobre: { nome: "Sobre mim", descricao: "Um texto contando quem você é" },
   contato: { nome: "Chamar no WhatsApp", descricao: "Faixa final com o botão de contato" },
 };
 
 export const SECOES_PADRAO: Secao[] = [
+  { id: "novidades", visivel: true },
   { id: "destaque", visivel: true },
   { id: "vantagens", visivel: true },
-  { id: "novidades", visivel: true },
   { id: "sobre", visivel: false },
   { id: "contato", visivel: true },
 ];
@@ -45,7 +45,9 @@ export function conteudoDaLoja(loja: Partial<Loja>): Conteudo {
     return typeof v === "string" && v.trim() ? v.trim() : TEXTOS_PADRAO[k];
   };
   const salvas = Array.isArray(loja.secoes) ? loja.secoes.filter((s) => s && s.id in SECOES_INFO) : [];
-  const secoes = [...salvas, ...SECOES_PADRAO.filter((p) => !salvas.some((s) => s.id === p.id))];
+  const todas = [...salvas, ...SECOES_PADRAO.filter((p) => !salvas.some((s) => s.id === p.id))];
+  // A grade de produtos vem sempre logo depois do perfil, e sempre visível
+  const secoes: Secao[] = [{ id: "novidades", visivel: true }, ...todas.filter((s) => s.id !== "novidades")];
   const vantagens = Array.isArray(loja.vantagens)
     ? loja.vantagens.filter((v) => v && v.titulo?.trim()).slice(0, 4)
     : VANTAGENS_PADRAO;

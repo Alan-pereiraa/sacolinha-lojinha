@@ -123,7 +123,8 @@ export function FormLoja({ loja, produtos }: { loja: Loja; produtos: Produto[] }
   const mover = (i: number, d: -1 | 1) =>
     setSecoes((s) => {
       const j = i + d;
-      if (j < 0 || j >= s.length) return s;
+      // a 1ª posição é fixa da grade de produtos
+      if (j < 1 || j >= s.length || i < 1) return s;
       const n = [...s];
       [n[i], n[j]] = [n[j], n[i]];
       return n;
@@ -305,7 +306,7 @@ export function FormLoja({ loja, produtos }: { loja: Loja; produtos: Produto[] }
         </Grupo>
 
         <Grupo titulo="Seções da vitrine">
-          <p className="-mt-2 text-[13px] text-muted">Ligue, desligue e mude a ordem do que aparece.</p>
+          <p className="-mt-2 text-[13px] text-muted">Os produtos vêm logo depois do perfil. Ligue, desligue e mude a ordem do resto.</p>
           <ul className="flex flex-col gap-2">
             {secoes.map((s, i) => (
               <li key={s.id} className={`flex items-center gap-3 rounded-2xl border-[1.5px] px-3.5 py-2.5 ${s.visivel ? "border-petal bg-white" : "border-dashed border-petal bg-blush"}`}>
@@ -313,6 +314,7 @@ export function FormLoja({ loja, produtos }: { loja: Loja; produtos: Produto[] }
                   type="checkbox"
                   aria-label={`Mostrar ${SECOES_INFO[s.id].nome}`}
                   checked={s.visivel}
+                  disabled={s.id === "novidades"}
                   onChange={() => setSecoes((l) => l.map((x) => (x.id === s.id ? { ...x, visivel: !x.visivel } : x)))}
                   className="size-5 shrink-0 accent-[var(--deep)]"
                 />
@@ -321,8 +323,8 @@ export function FormLoja({ loja, produtos }: { loja: Loja; produtos: Produto[] }
                   <span className="truncate text-[12px] text-muted">{SECOES_INFO[s.id].descricao}</span>
                 </span>
                 <span className="flex gap-1">
-                  <button type="button" aria-label={`Subir ${SECOES_INFO[s.id].nome}`} disabled={i === 0} onClick={() => mover(i, -1)} className="flex size-9 items-center justify-center rounded-xl bg-soft font-bold text-deep disabled:opacity-30">↑</button>
-                  <button type="button" aria-label={`Descer ${SECOES_INFO[s.id].nome}`} disabled={i === secoes.length - 1} onClick={() => mover(i, 1)} className="flex size-9 items-center justify-center rounded-xl bg-soft font-bold text-deep disabled:opacity-30">↓</button>
+                  <button type="button" aria-label={`Subir ${SECOES_INFO[s.id].nome}`} disabled={i <= 1} onClick={() => mover(i, -1)} className="flex size-9 items-center justify-center rounded-xl bg-soft font-bold text-deep disabled:opacity-30">↑</button>
+                  <button type="button" aria-label={`Descer ${SECOES_INFO[s.id].nome}`} disabled={i === 0 || i === secoes.length - 1} onClick={() => mover(i, 1)} className="flex size-9 items-center justify-center rounded-xl bg-soft font-bold text-deep disabled:opacity-30">↓</button>
                 </span>
               </li>
             ))}
