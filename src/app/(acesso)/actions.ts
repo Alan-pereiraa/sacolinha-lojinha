@@ -126,3 +126,20 @@ export async function esqueciSenha(_: EstadoForm, form: FormData): Promise<Estad
   // Mesma resposta exista ou não a conta
   return { ok: "Se existir uma conta com esse e-mail, você vai receber um link para criar uma senha nova." };
 }
+
+/** Reenvia o e-mail de confirmação do cadastro. */
+export async function reenviarConfirmacao(_: EstadoForm, form: FormData): Promise<EstadoForm> {
+  const email = String(form.get("email") ?? "").trim();
+  if (!/^\S+@\S+\.\S+$/.test(email)) return { erro: "Informe um e-mail válido." };
+  const supabase = await createClient();
+  const { error } = await supabase.auth.resend({
+    type: "signup",
+    email,
+    options: { emailRedirectTo: `${await origem()}/auth/confirm?next=/painel` },
+  });
+  if (error && /rate|seconds|too many/i.test(error.message)) {
+    return { erro: "Espere um minutinho antes de pedir outro link." };
+  }
+  // Mesma resposta exista ou não a conta (e se ela já estiver confirmada)
+  return { ok: "Se esse e-mail tiver um cadastro esperando confirmação, um link novo vai chegar em instantes. Confira também o spam." };
+}

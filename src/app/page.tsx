@@ -1,10 +1,19 @@
+import { redirect } from "next/navigation";
 import { LogoSacolinha } from "@/components/logo-sacolinha";
 import Link from "next/link";
 import { SimboloSacolinha } from "@/components/logo-sacolinha";
 import { IconeCaixa, IconeCodigo, IconeMegafone, IconeSacola } from "@/components/icones";
 
 
-export default function Home() {
+export default async function Home({ searchParams }: PageProps<"/">) {
+  // Se o Supabase mandar o link de confirmação para a página inicial, encaminha para a confirmação
+  const sp = await searchParams;
+  if (sp.code || sp.token_hash || sp.error_code) {
+    const q = new URLSearchParams();
+    for (const [k, v] of Object.entries(sp)) if (typeof v === "string") q.set(k, v);
+    redirect(`/auth/confirm?${q.toString()}`);
+  }
+
   return (
     <div className="min-h-screen bg-blush">
       <header className="mx-auto flex max-w-[1200px] items-center justify-between gap-3 px-4 py-5 sm:px-6 sm:py-6">

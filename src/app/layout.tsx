@@ -5,6 +5,7 @@ import "@fontsource-variable/fraunces/wght-italic.css";
 import "@fontsource-variable/dm-sans/index.css";
 import "@fontsource/cormorant-garamond/latin-600-italic.css";
 import "./globals.css";
+import { ErroNoLink } from "@/components/erro-no-link";
 
 export const metadata: Metadata = {
   title: { default: "Sacolinha", template: "%s · Sacolinha" },
@@ -16,7 +17,10 @@ export const viewport: Viewport = { themeColor: "#A3195B" };
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="pt-BR">
-      <body className="min-h-screen font-sans antialiased">{children}</body>
+      <body className="min-h-screen font-sans antialiased">
+        <ErroNoLink />
+        {children}
+      </body>
     </html>
   );
 }

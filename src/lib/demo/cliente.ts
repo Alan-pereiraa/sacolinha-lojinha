@@ -310,6 +310,7 @@ export function criarClienteDemo() {
       signOut: async () => ok,
       signUp: async () => ({ data: { session: {}, user: DEMO_USER }, error: null }),
       resetPasswordForEmail: async () => ok,
+      resend: async () => ok,
       exchangeCodeForSession: async () => ok,
       verifyOtp: async () => ok,
       updateUser: async () => ok,
