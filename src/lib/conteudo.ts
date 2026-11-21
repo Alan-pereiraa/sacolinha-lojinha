@@ -18,22 +18,22 @@ export const SECOES_PADRAO: Secao[] = [
 ];
 
 export const VANTAGENS_PADRAO: Vantagem[] = [
-  { titulo: "Embalagem discreta", texto: "Ninguém sabe o que tem dentro" },
+  { titulo: "Atendimento no WhatsApp", texto: "Tire dúvidas e reserve na hora" },
   { titulo: "Entrega combinada", texto: "Dia e local que ficar bom" },
   { titulo: "Pague como preferir", texto: "Pix, cartão ou no caderninho" },
-  { titulo: "Ajuda com o tamanho", texto: "Me chama que eu te oriento" },
+  { titulo: "Novidades sempre", texto: "Produtos novos a cada sacola" },
 ];
 
 export const TEXTOS_PADRAO = {
-  aviso_topo: "Embalagem discreta · Entrega combinada · Pix, cartão ou combinado",
+  aviso_topo: "Entrega combinada · Pix, cartão ou no caderninho",
   destaque_etiqueta: "Coleção nova",
-  destaque_titulo: "Renda, cetim e *você* no centro de tudo",
-  destaque_texto: "Escolha suas peças, me chama no WhatsApp e eu separo no seu tamanho. Atendimento discreto e com carinho.",
+  destaque_titulo: "Novidades escolhidas *pra você*",
+  destaque_texto: "Escolha seus produtos, me chama no WhatsApp e eu separo pra você. Atendimento rápido e com carinho.",
   destaque_botao: "Ver a coleção",
   novidades_titulo: "Novidades *da sacola*",
   sobre_titulo: "Prazer, *eu sou a dona*",
   sobre_texto: "",
-  contato_texto: "Ficou na dúvida do tamanho? *Me chama* que eu te ajudo a escolher.",
+  contato_texto: "Ficou com alguma dúvida? *Me chama* que eu te ajudo a escolher.",
 };
 
 export type Conteudo = typeof TEXTOS_PADRAO & { vantagens: Vantagem[]; secoes: Secao[] };

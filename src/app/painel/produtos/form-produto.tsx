@@ -86,7 +86,7 @@ export function FormProduto({
           {!podeEscolherSacola && sacolas.length === 1 && !produto && <input type="hidden" name="sacola_id" value={sacolas[0].id} />}
           <div className="flex flex-col gap-2">
             <label htmlFor="nome" className="rotulo">Nome da peça</label>
-            <input id="nome" name="nome" required minLength={2} defaultValue={produto?.nome} className="campo" placeholder="Ex.: Conjunto Renda Rosé" />
+            <input id="nome" name="nome" required minLength={2} defaultValue={produto?.nome} className="campo" placeholder="Ex.: Vestido Midi Floral" />
           </div>
           <div className="flex flex-wrap gap-4">
             <div className="flex flex-[1_1_200px] flex-col gap-2">

@@ -8,7 +8,7 @@ export function FormEsqueci() {
   const [estado, acao, enviando] = useActionState(esqueciSenha, undefined);
   return (
     <form action={acao} className="flex w-full max-w-md flex-col gap-5">
-      <h2 className="titulo text-4xl">Nova <span className="italic text-deep">senha</span></h2>
+      <h1 className="titulo text-[28px] leading-tight text-balance sm:text-[30px]">Nova <span className="italic text-deep">senha</span></h1>
       {estado?.erro && <p role="alert" className="rounded-2xl bg-soft px-4 py-3 text-sm font-semibold text-deep">{estado.erro}</p>}
       {estado?.ok ? (
         <p role="status" className="rounded-2xl bg-soft px-4 py-3 text-ink">{estado.ok}</p>

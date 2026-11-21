@@ -33,7 +33,7 @@ export function PainelDivulgar({
   const [selecionados, setSelecionados] = useState<string[]>(
     produtos.filter((p) => !p.novidade_enviada_em).slice(0, 8).map((p) => p.id),
   );
-  const [abertura, setAbertura] = useState(`Oii, meninas! 💕 Chegou sacola nova na ${lojaNome}. Olha só as novidades:`);
+  const [abertura, setAbertura] = useState(`Oii, gente! 💕 Chegou sacola nova na ${lojaNome}. Olha só as novidades:`);
   const [pendente, iniciar] = useTransition();
 
   // Estado inicial e, enquanto houver QR na tela, consulta a cada 3s se já conectou

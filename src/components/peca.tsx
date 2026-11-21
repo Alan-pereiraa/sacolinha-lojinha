@@ -16,6 +16,12 @@ export function IlustracaoPeca({ categoria, tamanho = 120 }: { categoria: string
           <path d="M24 6 L26 6 L28 18 L36 18 L38 6 L40 6 L42 22 L50 56 L14 56 L22 22 Z" {...corpo} />
           <path d="M22 22 C28 27 36 27 42 22" />
         </>
+      ) : categoria === "outros" || !["sutias", "conjuntos"].includes(categoria) ? (
+        <>
+          {/* etiqueta de preço: produto genérico */}
+          <path d="M14 30 L30 14 L50 14 L50 34 L34 50 Z" {...corpo} />
+          <circle cx="42" cy="22" r="3" />
+        </>
       ) : (
         <>
           <path d="M16 32 L20 12 M48 32 L44 12" />

@@ -12,9 +12,9 @@ export function FormLogin({ voltar, erroLink, demo }: { voltar: string; erroLink
   return (
     <form action={acao} className="flex w-full max-w-md flex-col gap-5">
       <div className="flex flex-col gap-1.5">
-        <h2 className="titulo text-4xl">
+        <h1 className="titulo text-[28px] leading-tight text-balance sm:text-[30px]">
           Que bom te ver <span className="italic text-deep">de novo</span>
-        </h2>
+        </h1>
         <p className="text-muted">Entre para cuidar da sua loja.</p>
       </div>
 

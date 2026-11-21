@@ -13,7 +13,7 @@ export default function CadastroPage() {
         <Link href="/login" aria-label="Sacolinha, entrar" className="self-start"><LogoSacolinha tamanho={30} /></Link>
         <div className="flex flex-col gap-3">
           <h1 className="titulo text-4xl leading-[1.05] sm:text-5xl">
-            Sua loja de lingerie <span className="italic text-deep">no ar</span> em 3 passos
+            Sua loja <span className="italic text-deep">no ar</span> em 3 passos
           </h1>
           <p className="text-muted">Leva uns 3 minutos. Dá para mudar tudo depois.</p>
         </div>

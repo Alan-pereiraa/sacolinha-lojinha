@@ -8,7 +8,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: { default: "Sacolinha", template: "%s · Sacolinha" },
-  description: "Vitrine e vendas para revendedoras de lingerie.",
+  description: "Vitrine online, vendas e acerto de sacolas para quem revende: roupas, cosméticos, semijoias e o que mais você vender.",
 };
 
 export const viewport: Viewport = { themeColor: "#A3195B" };

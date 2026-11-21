@@ -57,7 +57,7 @@ export function FormNovaSacola({ empresas }: { empresas: Fornecedora[] }) {
         {empresaId === "nova" && (
           <div className="mt-2 flex flex-col gap-2">
             <label htmlFor="nova_empresa" className="rotulo">Nome da empresa</label>
-            <input id="nova_empresa" name="nova_empresa" required maxLength={60} placeholder="Ex.: Lingerie da Ana" className="campo" />
+            <input id="nova_empresa" name="nova_empresa" required maxLength={60} placeholder="Ex.: Bella Modas" className="campo" />
           </div>
         )}
       </fieldset>
