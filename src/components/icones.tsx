@@ -37,3 +37,5 @@ export const IconeUpload = (p: P) => <Base {...p}><path d="M12 16V4M7 9l5-5 5 5M
 export const IconeCaixa = (p: P) => <Base {...p}><path d="M4 8l8-4 8 4v8l-8 4-8-4z" /><path d="M4 8l8 4 8-4M12 12v8" /></Base>;
 export const IconeCaderno = (p: P) => <Base {...p}><path d="M6 3h11a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6z" /><path d="M6 3v18M4 7h4M4 12h4M4 17h4M11 8h5M11 12h5" /></Base>;
 export const IconeEditar = (p: P) => <Base {...p}><path d="M4 20h4L19 9l-4-4L4 16v4z" /></Base>;
+export const IconeInstagram = (p: P) => <Base {...p}><rect x="4" y="4" width="16" height="16" rx="5" /><circle cx="12" cy="12" r="3.5" /><path d="M16.5 7.5h.01" /></Base>;
+export const IconePin = (p: P) => <Base {...p}><path d="M12 21s-6-5.5-6-11a6 6 0 0 1 12 0c0 5.5-6 11-6 11z" /><circle cx="12" cy="10" r="2" /></Base>;

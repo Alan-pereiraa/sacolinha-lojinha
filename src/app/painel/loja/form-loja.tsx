@@ -17,7 +17,7 @@ import {
 import { SECOES_INFO, TEXTOS_PADRAO, VANTAGENS_PADRAO, conteudoDaLoja } from "@/lib/conteudo";
 import type { Loja, Produto, Secao, Vantagem } from "@/lib/tipos";
 import { linkWhatsApp } from "@/lib/formatar";
-import { AvisoTopo, RedesSociais, SecoesDaVitrine } from "@/components/vitrine/secoes";
+import { AvisoTopo, PerfilLoja, RedesSociais, SecoesDaVitrine } from "@/components/vitrine/secoes";
 import { IconeUpload } from "@/components/icones";
 
 const LARGURA_PREVIA = 1240;
@@ -420,18 +420,8 @@ export function FormLoja({ loja, produtos }: { loja: Loja; produtos: Produto[] }
             className="bg-blush pb-10 text-ink"
           >
             <AvisoTopo texto={conteudo.aviso_topo} />
-            <header className="mx-auto flex max-w-[1240px] items-center justify-between gap-4 px-6 py-5">
-              <span className="flex items-center gap-3">
-                {logo ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={logo} alt="" className="size-12 rounded-full object-cover" />
-                ) : (
-                  <span className={`flex size-12 items-center justify-center rounded-full bg-deep text-[22px] text-white ${classeFonte}`}>{nome.trim()[0]?.toUpperCase()}</span>
-                )}
-                <span className={`text-[26px] ${classeFonte}`}>{nome || "Sua loja"}</span>
-              </span>
-              <span className="btn-primario">WhatsApp</span>
-            </header>
+            <PerfilLoja loja={lojaPrevia} conteudo={conteudo} fonte={classeFonte} whats="#" totalPecas={produtos.length} />
+            <div className="h-6" />
             <SecoesDaVitrine
               loja={lojaPrevia}
               conteudo={conteudo}

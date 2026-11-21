@@ -20,7 +20,7 @@ export function CabecalhoLoja({ loja, children }: { loja: Loja; children?: React
         )}
         <span className="flex flex-col">
           <span className={`text-[26px] leading-none ${fonte}`}>{loja.nome}</span>
-          <span className="text-xs tracking-[0.12em] text-muted uppercase">lingerie{loja.cidade ? ` · ${loja.cidade}` : ""}</span>
+          {loja.cidade && <span className="text-xs tracking-[0.12em] text-muted uppercase">{loja.cidade}</span>}
         </span>
       </Link>
       {children}

@@ -2,9 +2,9 @@
 import type { Loja, Secao, SecaoId, Vantagem } from "@/lib/tipos";
 
 export const SECOES_INFO: Record<SecaoId, { nome: string; descricao: string }> = {
-  destaque: { nome: "Destaque", descricao: "Banner do topo com título, texto e botão" },
+  destaque: { nome: "Destaque", descricao: "Faixa de promoção logo abaixo do perfil" },
   vantagens: { nome: "Vantagens", descricao: "Até 4 motivos para comprar com você" },
-  novidades: { nome: "Peças", descricao: "As peças da sacola, com filtro por categoria" },
+  novidades: { nome: "Produtos", descricao: "Grade de produtos com busca e categorias" },
   sobre: { nome: "Sobre mim", descricao: "Um texto contando quem você é" },
   contato: { nome: "Chamar no WhatsApp", descricao: "Faixa final com o botão de contato" },
 };
