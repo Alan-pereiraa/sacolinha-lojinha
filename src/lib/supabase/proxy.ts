@@ -28,12 +28,13 @@ export async function updateSession(request: NextRequest) {
     },
   );
 
-  // Não coloque código entre createServerClient e getUser.
-  let user = null;
+  // Não coloque código entre createServerClient e getClaims.
+  // getClaims confere a assinatura do token localmente (chaves assimétricas) e só vai ao
+  // servidor de autenticação quando precisa renovar a sessão: bem mais rápido que getUser.
+  let user: { sub: string } | null = null;
   try {
-    ({
-      data: { user },
-    } = await supabase.auth.getUser());
+    const { data } = await supabase.auth.getClaims();
+    user = data?.claims?.sub ? { sub: data.claims.sub } : null;
   } catch (e) {
     // Supabase fora do ar ou chave recusada: segue sem sessão em vez de quebrar a página
     console.error("[proxy] falha ao ler a sessão", e);

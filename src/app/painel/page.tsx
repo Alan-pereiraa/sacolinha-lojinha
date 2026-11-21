@@ -11,29 +11,31 @@ export const metadata: Metadata = { title: "Início" };
 
 export default async function PainelPage() {
   const { supabase, loja, user } = await getMinhaLoja();
-  const sacolas = await getSacolasAbertas(loja.id);
-  const idsSacolas = sacolas.map((x) => x.id);
+  // Tudo em paralelo: cada consulta é uma ida ao banco
+  const consultaVendas = supabase
+    .from("vendas")
+    .select("id, total, lucro, forma_pagamento, parcelas, cliente_nome, pago, criado_em, venda_itens(produto_nome, tamanho, quantidade)")
+    .eq("loja_id", loja.id)
+    .order("criado_em", { ascending: false })
+    .limit(8);
+  const consultaPendentes = supabase
+    .from("parcelas")
+    .select("id, venda_id, numero, total_parcelas, valor, vence_em, pago_em, vendas(cliente_nome)")
+    .eq("loja_id", loja.id)
+    .is("pago_em", null)
+    .order("vence_em", { ascending: true });
+  // Variantes das sacolas abertas, filtradas pelo status da sacola no próprio banco
+  const consultaVariantes = supabase
+    .from("variantes")
+    .select("estoque, vendidos, produtos!inner(nome, preco, sacola_id, sacolas!inner(status))")
+    .eq("loja_id", loja.id)
+    .eq("produtos.sacolas.status", "aberta");
 
-  const [{ data: variantes }, { data: vendas }, { data: pendentes }] = await Promise.all([
-    idsSacolas.length
-      ? supabase
-          .from("variantes")
-          .select("estoque, vendidos, produtos!inner(nome, preco, sacola_id)")
-          .eq("loja_id", loja.id)
-          .in("produtos.sacola_id", idsSacolas)
-      : Promise.resolve({ data: [] as never[] }),
-    supabase
-      .from("vendas")
-      .select("id, total, lucro, forma_pagamento, parcelas, cliente_nome, pago, criado_em, venda_itens(produto_nome, tamanho, quantidade)")
-      .eq("loja_id", loja.id)
-      .order("criado_em", { ascending: false })
-      .limit(8),
-    supabase
-      .from("parcelas")
-      .select("id, venda_id, numero, total_parcelas, valor, vence_em, pago_em, vendas(cliente_nome)")
-      .eq("loja_id", loja.id)
-      .is("pago_em", null)
-      .order("vence_em", { ascending: true }),
+  const [sacolas, { data: variantes }, { data: vendas }, { data: pendentes }] = await Promise.all([
+    getSacolasAbertas(loja.id),
+    consultaVariantes,
+    consultaVendas,
+    consultaPendentes,
   ]);
 
   type ProdutoV = { nome: string; preco: number; sacola_id: string };

@@ -9,10 +9,15 @@ import { CONFIG_OK, MODO_DEMO } from "@/lib/config";
 export const getMinhaLoja = cache(async () => {
   if (!MODO_DEMO && !CONFIG_OK) redirect("/status");
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  // getClaims valida o token sem ida extra ao servidor de autenticação (quando possível)
+  const { data } = await supabase.auth.getClaims();
+  const claims = data?.claims;
+  if (!claims?.sub) redirect("/login");
+  const user = {
+    id: claims.sub,
+    email: (claims.email as string | undefined) ?? null,
+    user_metadata: (claims.user_metadata ?? {}) as Record<string, unknown>,
+  };
 
   const { data: loja } = await supabase.from("lojas").select("*").eq("dono_id", user.id).maybeSingle();
   if (!loja) redirect("/cadastro?erro=sem-loja");

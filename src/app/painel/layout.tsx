@@ -16,7 +16,7 @@ export default async function PainelLayout({ children }: LayoutProps<"/painel">)
           <MarcaLoja nome={loja.nome} logo={loja.logo_url} />
           <span className="flex min-w-0 flex-col">
             <span className="truncate font-elegante text-xl italic">{loja.nome}</span>
-            <span className="text-xs text-muted">lingerie</span>
+            <span className="text-xs text-muted">Painel da loja</span>
           </span>
         </div>
         <MenuLateral />

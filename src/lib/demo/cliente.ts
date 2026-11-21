@@ -23,10 +23,10 @@ function anexarRelacoes(tabela: string, linhas: Linha[], select: string) {
     const r: Linha = { ...l };
     const sacolaDe = (sid: unknown) => db.sacolas.find((s) => s.id === sid) ?? null;
     if (tabela === "produtos" && select.includes("variantes")) r.variantes = db.variantes.filter((v) => v.produto_id === l.id);
-    if (tabela === "produtos" && select.includes("sacolas(")) r.sacolas = sacolaDe(l.sacola_id);
+    if (tabela === "produtos" && /sacolas(!inner)?\(/.test(select)) r.sacolas = sacolaDe(l.sacola_id);
     if (tabela === "variantes" && select.includes("produtos")) {
       const p = db.produtos.find((x) => x.id === l.produto_id);
-      r.produtos = p ? (select.includes("sacolas(") ? { ...p, sacolas: sacolaDe(p.sacola_id) } : p) : null;
+      r.produtos = p ? (/sacolas(!inner)?\(/.test(select) ? { ...p, sacolas: sacolaDe(p.sacola_id) } : p) : null;
     }
     if (tabela === "sacolas" && select.includes("fornecedoras")) r.fornecedoras = (db.fornecedoras ?? []).find((f) => f.id === l.fornecedora_id) ?? null;
     if (tabela === "vendas" && select.includes("venda_itens")) r.venda_itens = db.venda_itens.filter((i) => i.venda_id === l.id);
@@ -39,10 +39,12 @@ function anexarRelacoes(tabela: string, linhas: Linha[], select: string) {
 }
 
 function valor(l: Linha, campo: string): unknown {
-  if (!campo.includes(".")) return l[campo];
-  const [rel, sub] = campo.split(".");
-  const v = l[rel] as Linha | Linha[] | null | undefined;
-  return Array.isArray(v) ? v[0]?.[sub] : v?.[sub];
+  let atual: unknown = l;
+  for (const parte of campo.split(".")) {
+    const v = Array.isArray(atual) ? atual[0] : atual;
+    atual = (v as Linha | null | undefined)?.[parte];
+  }
+  return atual;
 }
 
 type Filtro = (l: Linha) => boolean;
@@ -291,6 +293,10 @@ export function criarClienteDemo() {
     },
     auth: {
       getUser: async () => ({ data: { user: DEMO_USER }, error: null }),
+      getClaims: async () => ({
+        data: { claims: { sub: DEMO_USER.id, email: DEMO_USER.email, user_metadata: DEMO_USER.user_metadata } },
+        error: null,
+      }),
       signInWithPassword: async () => ok,
       signOut: async () => ok,
       signUp: async () => ({ data: { session: {}, user: DEMO_USER }, error: null }),
