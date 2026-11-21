@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { getMinhaLoja } from "@/lib/loja";
-import { getVitrine } from "@/lib/vitrine";
+import { getVitrinePagina } from "@/lib/vitrine";
 import Link from "next/link";
 import { FormLoja } from "./form-loja";
 
@@ -8,7 +8,7 @@ export const metadata: Metadata = { title: "Minha loja" };
 
 export default async function LojaPage() {
   const { loja } = await getMinhaLoja();
-  const produtos = (await getVitrine(loja.id)).slice(0, 8);
+  const { produtos } = await getVitrinePagina(loja.id, null, "", 1);
   return (
     <>
       <header>

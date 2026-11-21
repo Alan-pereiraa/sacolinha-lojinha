@@ -47,6 +47,14 @@ function valor(l: Linha, campo: string): unknown {
   return atual;
 }
 
+function valores(l: Linha, campo: string): unknown[] {
+  let atual: unknown[] = [l];
+  for (const parte of campo.split(".")) {
+    atual = atual.flatMap((x) => (Array.isArray(x) ? x : [x])).map((x) => (x as Linha | null | undefined)?.[parte]);
+  }
+  return atual.flatMap((x) => (Array.isArray(x) ? x : [x]));
+}
+
 type Filtro = (l: Linha) => boolean;
 
 class Consulta implements PromiseLike<{ data: unknown; error: { message: string } | null }> {
@@ -87,7 +95,8 @@ class Consulta implements PromiseLike<{ data: unknown; error: { message: string 
     return this;
   }
   gt(campo: string, v: number) {
-    this.filtros.push((l) => Number(valor(l, campo)) > v);
+    // Em relação 1-N (ex.: variantes.estoque), basta um item satisfazer, como no !inner do PostgREST
+    this.filtros.push((l) => valores(l, campo).some((x) => Number(x) > v));
     return this;
   }
   is(campo: string, v: null) {

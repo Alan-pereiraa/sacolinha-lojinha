@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getLojaPublica, getVitrine } from "@/lib/vitrine";
+import { getLojaPublica, getResumoVitrine, getVitrinePagina } from "@/lib/vitrine";
 import { estiloDoTema, fonteDaLoja, formatoDaLoja } from "@/lib/temas";
 import { CATEGORIAS } from "@/lib/tipos";
 import { conteudoDaLoja } from "@/lib/conteudo";
@@ -21,18 +21,17 @@ export async function generateMetadata({ params }: PageProps<"/[slug]">): Promis
 
 export default async function VitrinePage({ params, searchParams }: PageProps<"/[slug]">) {
   const { slug } = await params;
-  const { cat, q } = await searchParams;
+  const { cat, q, pagina: pag } = await searchParams;
   const loja = await getLojaPublica(slug);
   if (!loja) notFound();
 
-  const todos = await getVitrine(loja.id);
   const categoria = typeof cat === "string" && CATEGORIAS.some((c) => c.id === cat) ? cat : null;
   const busca = typeof q === "string" ? q.trim().slice(0, 60) : "";
-  const normalizar = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-  const termo = normalizar(busca);
-  const produtos = todos.filter(
-    (p) => (!categoria || p.categoria === categoria) && (!termo || normalizar(`${p.nome} ${p.cor ?? ""} ${p.descricao ?? ""}`).includes(termo)),
-  );
+  const pedida = Math.max(1, Math.min(500, Number.parseInt(typeof pag === "string" ? pag : "1", 10) || 1));
+  const [resumo, { produtos, total }] = await Promise.all([
+    getResumoVitrine(loja.id),
+    getVitrinePagina(loja.id, categoria, busca, pedida),
+  ]);
   const fonte = fonteDaLoja(loja.fonte);
   const formato = formatoDaLoja(loja.formato);
   const conteudo = conteudoDaLoja(loja);
@@ -42,7 +41,7 @@ export default async function VitrinePage({ params, searchParams }: PageProps<"/
     <div style={estiloDoTema(loja.tema, loja.cor_personalizada)} className="min-h-screen bg-blush text-ink">
       <AvisoTopo texto={conteudo.aviso_topo} />
 
-      <PerfilLoja loja={loja} conteudo={conteudo} fonte={fonte} whats={whats} totalPecas={todos.length} />
+      <PerfilLoja loja={loja} conteudo={conteudo} fonte={fonte} whats={whats} totalPecas={resumo.length} />
 
       <div className="h-5 sm:h-6" />
       <SecoesDaVitrine
@@ -52,7 +51,9 @@ export default async function VitrinePage({ params, searchParams }: PageProps<"/
         formatoFoto={formato.foto}
         whats={whats}
         produtos={produtos}
-        todos={todos}
+        resumo={resumo}
+        total={total}
+        pagina={pedida}
         categoria={categoria}
         busca={busca}
       />

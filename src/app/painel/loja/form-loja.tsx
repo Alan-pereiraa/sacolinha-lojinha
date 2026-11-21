@@ -110,7 +110,7 @@ export function FormLoja({ loja, produtos }: { loja: Loja; produtos: Produto[] }
     setErroFoto("");
     setEnviando(tipo);
     try {
-      const url = await enviarFoto(arq, loja.id, "marca");
+      const url = await enviarFoto(arq, loja.id, tipo);
       if (tipo === "logo") setLogo(url);
       else setCapa(url);
     } catch (e) {
@@ -430,8 +430,8 @@ export function FormLoja({ loja, produtos }: { loja: Loja; produtos: Produto[] }
               fonte={classeFonte}
               formatoFoto={FORMATOS[formato].foto}
               whats={linkWhatsApp(loja.whatsapp, "") ?? "#"}
-              produtos={produtos}
-              todos={produtos}
+              produtos={produtos.slice(0, 10)}
+              resumo={produtos}
               categoria={null}
               linkProduto={false}
             />

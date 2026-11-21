@@ -1,3 +1,4 @@
+import { miniatura } from "@/lib/fotos";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getEmpresas, getMinhaLoja, getSacolasAbertas } from "@/lib/loja";
@@ -10,6 +11,8 @@ import { FormNovaSacola } from "./form-nova-sacola";
 import { Empresas } from "./empresas";
 
 export const metadata: Metadata = { title: "Sacola" };
+
+const POR_PAGINA_PAINEL = 30;
 
 const ABAS = [
   { id: "disponiveis", rotulo: "Disponíveis" },
@@ -63,28 +66,41 @@ export default async function SacolaPage({ searchParams }: PageProps<"/painel/sa
     );
   }
 
-  let query = supabase
+  // 1) Resumo leve de todas as peças da sacola (sem fotos): números da sacola, filtros e busca
+  type Leve = { id: string; nome: string; preco: number; criado_em: string; variantes: { estoque: number; vendidos: number }[] };
+  const { data: leves } = await supabase
     .from("produtos")
-    .select("*, variantes(*)")
+    .select("id, nome, preco, criado_em, variantes(estoque, vendidos)")
     .eq("loja_id", loja.id)
     .eq("sacola_id", sacola.id)
     .order("criado_em", { ascending: false });
-  if (busca) query = query.ilike("nome", `%${busca}%`);
-  const { data } = await query;
-  const produtos = (data ?? []) as Produto[];
-
-  const todasVariantes = produtos.flatMap((p) => (p.variantes ?? []).map((v) => ({ ...v, preco: Number(p.preco) })));
-  const pecas = todasVariantes.reduce((a, v) => a + v.estoque + v.vendidos, 0);
-  const vendidas = todasVariantes.reduce((a, v) => a + v.vendidos, 0);
-  const devolver = todasVariantes.reduce((a, v) => a + v.estoque, 0);
-  const vendidoValor = todasVariantes.reduce((a, v) => a + v.vendidos * v.preco, 0);
+  const resumo = ((leves ?? []) as Leve[]).map((p) => ({
+    ...p,
+    est: p.variantes.reduce((a, v) => a + v.estoque, 0),
+    vend: p.variantes.reduce((a, v) => a + v.vendidos, 0),
+  }));
+  const pecas = resumo.reduce((a, p) => a + p.est + p.vend, 0);
+  const vendidas = resumo.reduce((a, p) => a + p.vend, 0);
+  const devolver = resumo.reduce((a, p) => a + p.est, 0);
+  const vendidoValor = resumo.reduce((a, p) => a + p.vend * Number(p.preco), 0);
   const aPagar = vendidoValor * (1 - Number(sacola.percentual_lucro) / 100);
 
-  const filtrados = produtos.filter((p) => {
-    const est = (p.variantes ?? []).reduce((a, v) => a + v.estoque, 0);
-    const vend = (p.variantes ?? []).reduce((a, v) => a + v.vendidos, 0);
-    return aba === "todas" || (aba === "disponiveis" ? est > 0 : vend > 0);
-  });
+  const sem = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const filtradosIds = resumo
+    .filter((p) => aba === "todas" || (aba === "disponiveis" ? p.est > 0 : p.vend > 0))
+    .filter((p) => !busca || sem(p.nome).includes(sem(busca)))
+    .map((p) => p.id);
+
+  // 2) Só a página atual vem completa (com fotos e tamanhos)
+  const paginas = Math.max(1, Math.ceil(filtradosIds.length / POR_PAGINA_PAINEL));
+  const pagina = Math.min(paginas, Math.max(1, Number.parseInt(typeof sp.pagina === "string" ? sp.pagina : "1", 10) || 1));
+  const idsPagina = filtradosIds.slice((pagina - 1) * POR_PAGINA_PAINEL, pagina * POR_PAGINA_PAINEL);
+  const { data: completos } = idsPagina.length
+    ? await supabase.from("produtos").select("*, variantes(*)").eq("loja_id", loja.id).in("id", idsPagina)
+    : { data: [] };
+  const porId = new Map(((completos ?? []) as Produto[]).map((p) => [p.id, p]));
+  const filtrados = idsPagina.map((id) => porId.get(id)).filter((p): p is Produto => Boolean(p));
+  const produtos = resumo; // para saber se a sacola está vazia
   const dias = diasAte(sacola.devolver_ate);
 
   return (
@@ -169,7 +185,7 @@ export default async function SacolaPage({ searchParams }: PageProps<"/painel/sa
               return (
                 <li key={p.id} className="border-t border-soft first:border-0">
                   <Link href={`/painel/produtos/${p.id}`} className="flex items-center gap-3.5 py-3 hover:bg-blush/60">
-                    <FotoPeca foto={p.fotos[0]} categoria={p.categoria} alt="" className="h-16 w-13 shrink-0 rounded-t-full rounded-b-lg" tamanhoIlustracao={36} />
+                    <FotoPeca foto={miniatura(p.fotos[0])} categoria={p.categoria} alt="" className="h-16 w-13 shrink-0 rounded-t-full rounded-b-lg" tamanhoIlustracao={36} />
                     <span className="flex min-w-0 flex-1 flex-col">
                       <span className="truncate font-semibold">{p.nome}</span>
                       <span className="truncate text-[13px] text-muted">
@@ -186,6 +202,26 @@ export default async function SacolaPage({ searchParams }: PageProps<"/painel/sa
               );
             })}
           </ul>
+        )}
+
+        {paginas > 1 && (
+          <nav aria-label="Páginas" className="flex flex-wrap items-center justify-between gap-3 border-t border-soft pt-4 text-sm">
+            <span className="text-muted">
+              {filtradosIds.length} peças · página {pagina} de {paginas}
+            </span>
+            <span className="flex gap-2">
+              {pagina > 1 && (
+                <Link href={`/painel/sacola${qs({ aba, ...(busca ? { q: busca } : {}), pagina: String(pagina - 1) })}`} className="btn-secundario h-10">
+                  ‹ Anterior
+                </Link>
+              )}
+              {pagina < paginas && (
+                <Link href={`/painel/sacola${qs({ aba, ...(busca ? { q: busca } : {}), pagina: String(pagina + 1) })}`} className="btn-secundario h-10">
+                  Próxima ›
+                </Link>
+              )}
+            </span>
+          </nav>
         )}
       </section>
 

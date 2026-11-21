@@ -1,6 +1,7 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
+import { tagLoja, tagProdutos } from "@/lib/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getMinhaLoja, getSacolasAbertas } from "@/lib/loja";
@@ -38,7 +39,7 @@ const vendaSchema = z.object({
 export async function finalizarVenda(entrada: z.input<typeof vendaSchema>) {
   const parsed = vendaSchema.safeParse(entrada);
   if (!parsed.success) return { erro: "Confira as peças e o pagamento." };
-  const { supabase } = await getMinhaLoja();
+  const { supabase, loja } = await getMinhaLoja();
   const d = parsed.data;
   if (d.forma === "caderninho") {
     if (!d.clienteNome?.trim()) return { erro: "No caderninho, informe o nome de quem vai pagar." };
@@ -58,6 +59,7 @@ export async function finalizarVenda(entrada: z.input<typeof vendaSchema>) {
     p_cobrar_auto: d.cobrarAuto,
   });
   if (error) return { erro: erroAmigavel(error.message) };
+  updateTag(tagProdutos(loja.id)); // estoque mudou: a vitrine atualiza
   revalidatePath("/painel", "layout");
   return { ok: true as const, vendaId: data as string };
 }
@@ -288,6 +290,7 @@ export async function salvarProduto(_: Estado, form: FormData): Promise<Estado> 
     if (error) return { erro: erroAmigavel(error.message) };
   }
 
+  updateTag(tagProdutos(loja.id));
   revalidatePath("/painel", "layout");
   revalidatePath(`/${loja.slug}`, "layout");
   const { data: salvo } = await supabase.from("produtos").select("sacola_id").eq("id", produtoId).maybeSingle();
@@ -309,6 +312,7 @@ export async function excluirProduto(produtoId: string) {
   } else {
     await supabase.from("produtos").delete().eq("id", produtoId).eq("loja_id", loja.id);
   }
+  updateTag(tagProdutos(loja.id));
   revalidatePath("/painel", "layout");
   redirect("/painel/sacola");
 }
@@ -326,6 +330,7 @@ export async function fecharSacola(sacolaId: string) {
   const { data: prods } = await supabase.from("produtos").select("id").eq("sacola_id", sacolaId);
   const ids = ((prods ?? []) as { id: string }[]).map((p) => p.id);
   if (ids.length) await supabase.from("produtos").update({ visivel: false }).in("id", ids);
+  updateTag(tagProdutos(loja.id));
   revalidatePath("/painel", "layout");
   redirect(`/painel/sacola/acerto/${sacolaId}`);
 }
@@ -480,6 +485,7 @@ export async function salvarLoja(_: Estado, form: FormData): Promise<Estado> {
     })
     .eq("id", loja.id);
   if (error) return { erro: erroAmigavel(error.message) };
+  updateTag(tagLoja(loja.slug));
   revalidatePath("/painel", "layout");
   revalidatePath(`/${loja.slug}`, "layout");
   return { ok: "Loja salva! A vitrine já está atualizada." };

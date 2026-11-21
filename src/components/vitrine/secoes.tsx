@@ -7,6 +7,8 @@ import type { Conteudo } from "@/lib/conteudo";
 import type { Loja, Produto, SecaoId } from "@/lib/tipos";
 import { CATEGORIAS } from "@/lib/tipos";
 import { brl } from "@/lib/formatar";
+import { POR_PAGINA } from "@/lib/cache";
+import { miniatura } from "@/lib/fotos";
 import { ordenarTamanhos } from "@/lib/tamanhos";
 import { FotoPeca } from "@/components/peca";
 import { IconeBusca, IconeCaixa, IconeChat, IconeInstagram, IconePin } from "@/components/icones";
@@ -100,7 +102,7 @@ export function PerfilLoja({
   );
 }
 
-function SecaoDestaque({ loja, conteudo, fonte }: Base & { produtos: Produto[] }) {
+function SecaoDestaque({ loja, conteudo, fonte }: Base) {
   return (
     <section className="mx-auto max-w-[1240px] px-3 sm:px-6">
       <div className="relative flex flex-wrap items-center justify-between gap-5 overflow-hidden rounded-2xl bg-soft px-6 py-6 sm:px-10 sm:py-8">
@@ -145,7 +147,7 @@ function CardProduto({ p, novo }: { p: Produto; novo: boolean }) {
   return (
     <>
       <div className="relative">
-        <FotoPeca foto={p.fotos[0]} categoria={p.categoria} alt={p.nome} className="aspect-square w-full" fundo="bg-soft" tamanhoIlustracao={72} />
+        <FotoPeca foto={miniatura(p.fotos[0])} categoria={p.categoria} alt={p.nome} className="aspect-square w-full" fundo="bg-soft" tamanhoIlustracao={72} />
         {novo && <span className="absolute top-2 left-2 rounded-md bg-deep px-2 py-0.5 text-[11px] font-bold text-white">Novo</span>}
       </div>
       <div className="flex flex-1 flex-col gap-1 p-2.5 sm:p-3">
@@ -160,23 +162,79 @@ function CardProduto({ p, novo }: { p: Produto; novo: boolean }) {
   );
 }
 
+type ItemResumo = { id: string; categoria: string; criado_em?: string | null };
+
+function ItemPagina({ url, children, rotulo }: { url: string | null; children: React.ReactNode; rotulo?: string }) {
+  const classe = "flex h-10 min-w-10 items-center justify-center rounded-full bg-white px-3 text-sm font-semibold";
+  return url ? (
+    <Link href={url} aria-label={rotulo} className={`${classe} hover:bg-soft`}>
+      {children}
+    </Link>
+  ) : (
+    <span className={classe}>{children}</span>
+  );
+}
+
+/** Números de página no estilo dos marketplaces: 1 … 4 5 [6] 7 8 … 20 */
+function Paginacao({ pagina, paginas, href, ativo }: { pagina: number; paginas: number; href: (n: number) => string; ativo: boolean }) {
+  const numeros = [...new Set([1, pagina - 2, pagina - 1, pagina, pagina + 1, pagina + 2, paginas])]
+    .filter((n) => n >= 1 && n <= paginas)
+    .sort((a, b) => a - b);
+  return (
+    <nav aria-label="Páginas" className="flex flex-wrap items-center justify-center gap-1.5 pt-3">
+      {pagina > 1 && (
+        <ItemPagina url={ativo ? href(pagina - 1) : null} rotulo="Página anterior">
+          ‹ Anterior
+        </ItemPagina>
+      )}
+      {numeros.map((n, i) => (
+        <span key={n} className="flex items-center gap-1.5">
+          {i > 0 && n - numeros[i - 1] > 1 && <span className="px-1 text-muted">…</span>}
+          {n === pagina ? (
+            <span aria-current="page" className="flex h-10 min-w-10 items-center justify-center rounded-full bg-deep px-3 text-sm font-bold text-white">
+              {n}
+            </span>
+          ) : (
+            <ItemPagina url={ativo ? href(n) : null} rotulo={`Página ${n}`}>
+              {n}
+            </ItemPagina>
+          )}
+        </span>
+      ))}
+      {pagina < paginas && (
+        <ItemPagina url={ativo ? href(pagina + 1) : null} rotulo="Próxima página">
+          Próxima ›
+        </ItemPagina>
+      )}
+    </nav>
+  );
+}
+
 function SecaoNovidades({
   loja,
   conteudo,
   fonte,
   produtos,
-  todos,
+  resumo,
+  total,
+  pagina,
   categoria,
   busca,
   linkProduto,
-}: Base & { produtos: Produto[]; todos: Produto[]; categoria: string | null; busca: string; linkProduto: boolean }) {
+}: Base & { produtos: Produto[]; resumo: ItemResumo[]; total: number; pagina: number; categoria: string | null; busca: string; linkProduto: boolean }) {
+  const todos = resumo;
   const categoriasComPecas = CATEGORIAS.filter((c) => todos.some((p) => p.categoria === c.id));
+  const paginas = Math.max(1, Math.ceil(total / POR_PAGINA));
   // "Novo": chegou até 7 dias antes da peça mais recente (só marca se nem todas forem novas)
   const semanaPassada = Date.parse(todos[0]?.criado_em ?? "") - 7 * 86_400_000;
-  const ehNovo = (p: Produto) => Date.parse(p.criado_em ?? "") >= semanaPassada;
+  const ehNovo = (p: { criado_em?: string | null }) => Date.parse(p.criado_em ?? "") >= semanaPassada;
   const marcarNovos = todos.some((p) => !ehNovo(p));
-  const href = (cat: string | null) => {
-    const q = new URLSearchParams({ ...(cat ? { cat } : {}), ...(busca ? { q: busca } : {}) }).toString();
+  const href = (cat: string | null, pag = 1, comBusca = true) => {
+    const q = new URLSearchParams({
+      ...(cat ? { cat } : {}),
+      ...(busca && comBusca ? { q: busca } : {}),
+      ...(pag > 1 ? { pagina: String(pag) } : {}),
+    }).toString();
     return `/${loja.slug}${q ? `?${q}` : ""}#novidades`;
   };
   return (
@@ -232,12 +290,13 @@ function SecaoNovidades({
             Resultados para <strong className="text-ink">“{busca}”</strong>:{" "}
           </>
         ) : null}
-        {produtos.length} {produtos.length === 1 ? "produto" : "produtos"}
+        {total} {total === 1 ? "produto" : "produtos"}
+        {paginas > 1 && <> · página {pagina} de {paginas}</>}
         {busca && (
           <>
             {" "}
             ·{" "}
-            <Link href={href(categoria).replace(/q=[^&#]*&?/, "")} scroll={false} className="font-semibold text-deep">
+            <Link href={href(categoria, 1, false)} scroll={false} className="font-semibold text-deep">
               limpar busca
             </Link>
           </>
@@ -272,6 +331,8 @@ function SecaoNovidades({
           })}
         </ul>
       )}
+
+      {paginas > 1 && <Paginacao pagina={pagina} paginas={paginas} href={(n) => href(categoria, n)} ativo={linkProduto} />}
     </section>
   );
 }
@@ -317,11 +378,27 @@ function SecaoContato({ conteudo, fonte, whats }: Base) {
 }
 
 /** Desenha as seções visíveis, na ordem escolhida pela loja. */
-export function SecoesDaVitrine(props: Base & { produtos: Produto[]; todos: Produto[]; categoria: string | null; busca?: string; linkProduto?: boolean }) {
+export function SecoesDaVitrine(
+  props: Base & {
+    produtos: Produto[];
+    resumo: ItemResumo[];
+    total?: number;
+    pagina?: number;
+    categoria: string | null;
+    busca?: string;
+    linkProduto?: boolean;
+  },
+) {
   const mapa: Record<SecaoId, React.ReactNode> = {
-    destaque: <SecaoDestaque {...props} produtos={props.todos} />,
+    destaque: <SecaoDestaque {...props} />,
     vantagens: <SecaoVantagens {...props} />,
-    novidades: <SecaoNovidades {...props} busca={props.busca ?? ""} linkProduto={props.linkProduto ?? true} />,
+    novidades: <SecaoNovidades
+        {...props}
+        total={props.total ?? props.produtos.length}
+        pagina={props.pagina ?? 1}
+        busca={props.busca ?? ""}
+        linkProduto={props.linkProduto ?? true}
+      />,
     sobre: <SecaoSobre {...props} />,
     contato: <SecaoContato {...props} />,
   };

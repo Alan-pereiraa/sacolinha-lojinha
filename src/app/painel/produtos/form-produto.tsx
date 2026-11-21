@@ -43,7 +43,7 @@ export function FormProduto({
     setEnviando(true);
     try {
       for (const arq of Array.from(lista).slice(0, 6 - fotos.length)) {
-        const url = await enviarFoto(arq, lojaId, "produtos");
+        const url = await enviarFoto(arq, lojaId, "produto");
         setFotos((f) => [...f, url]);
       }
     } catch (e) {

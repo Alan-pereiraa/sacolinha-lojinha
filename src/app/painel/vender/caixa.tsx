@@ -1,5 +1,6 @@
 "use client";
 
+import { miniatura } from "@/lib/fotos";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { LeitorCodigo } from "@/components/leitor-codigo";
@@ -226,7 +227,7 @@ export function CaixaVenda({
           )}
           {itens.map((i) => (
             <div key={i.variante_id} className="flex items-center gap-3.5 border-t border-soft py-2.5 first:border-0">
-              <FotoPeca foto={i.foto} categoria={i.categoria} alt="" className="h-16 w-13 shrink-0 rounded-t-full rounded-b-lg" tamanhoIlustracao={36} />
+              <FotoPeca foto={miniatura(i.foto)} categoria={i.categoria} alt="" className="h-16 w-13 shrink-0 rounded-t-full rounded-b-lg" tamanhoIlustracao={36} />
               <span className="flex min-w-0 flex-1 flex-col">
                 <span className="truncate font-semibold">{i.nome}</span>
                 <span className="text-[13px] text-muted">Tam. {i.tamanho} · Cód. {i.codigo}</span>

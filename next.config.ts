@@ -26,6 +26,9 @@ const nextConfig: NextConfig = {
   },
   experimental: {
     serverActions: { bodySizeLimit: "8mb" },
+    // Volta para uma tela do painel vista há menos de 30 s sem consultar o banco de novo
+    // (qualquer alteração feita no painel limpa esse cache na hora)
+    staleTimes: { dynamic: 30 },
   },
 };
 

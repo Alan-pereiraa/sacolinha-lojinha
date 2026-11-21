@@ -1,5 +1,6 @@
 "use client";
 
+import { miniatura } from "@/lib/fotos";
 import { useEffect, useState, useTransition } from "react";
 import type { Produto } from "@/lib/tipos";
 import { legendaDaPeca } from "@/lib/legenda";
@@ -180,7 +181,7 @@ export function PainelDivulgar({
                       onChange={() => setSelecionados((s) => (on ? s.filter((x) => x !== p.id) : [...s, p.id]))}
                       className="size-5 accent-[var(--deep)]"
                     />
-                    <FotoPeca foto={p.fotos[0]} categoria={p.categoria} alt="" className="h-14 w-11 shrink-0 rounded-t-full rounded-b-md" tamanhoIlustracao={30} />
+                    <FotoPeca foto={miniatura(p.fotos[0])} categoria={p.categoria} alt="" className="h-14 w-11 shrink-0 rounded-t-full rounded-b-md" tamanhoIlustracao={30} />
                     <span className="flex min-w-0 flex-1 flex-col">
                       <span className="truncate font-semibold">{p.nome}</span>
                       <span className="text-xs text-muted">
